@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6
     },
+    phone:{
+      type:String,
+      required:true,
+      trim:true,
+    },
     gender: {
       type: String,
       enum: ['male', 'female', 'other'],
@@ -44,9 +49,14 @@ const userSchema = new mongoose.Schema(
     timestamps: true // Tự động tạo createdAt và updatedAt
   }
 );
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
 // Mã hóa mật khẩu trước khi lưu
 userSchema.pre('save', async function (next) {
+  if (this.gender) this.gender = capitalize(this.gender);
+if (this.role) this.role = capitalize(this.role);
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
@@ -56,5 +66,6 @@ userSchema.pre('save', async function (next) {
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
+
 
 module.exports = mongoose.model('User', userSchema);

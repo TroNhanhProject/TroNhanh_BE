@@ -9,7 +9,7 @@ const AccommodationSchema = new mongoose.Schema({
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null 
+    default: null
   },
   title: {
     type: String,
@@ -53,7 +53,13 @@ const AccommodationSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  location: {
+    district: String,   
+    street: String,     
+    addressDetail: String, 
   }
+
 });
 
 AccommodationSchema.pre('save', function (next) {

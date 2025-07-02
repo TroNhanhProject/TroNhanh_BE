@@ -8,6 +8,7 @@ const app = express()
 
 app.use(cors())         //Share tai nguyen giua cac cong khac nhau
 app.use(express.json())
+app.use('/uploads', express.static('uploads'));
 
 //Connect DB
 mongoose.connect(process.env.MONGO_URI)
@@ -20,6 +21,15 @@ mongoose.connect(process.env.MONGO_URI)
 app.get('/', (req, res) => {
     res.send('Welcome to TRO-NHANH')
 })
+
+const authRoutes = require('./src/routes/authRoutes');
+app.use('/api/auth', authRoutes);
+
+const profileRoutes = require('./src/routes/profileRoutes');
+app.use('/api/customer', profileRoutes );
+
+const accmmodationRoutes = require('./src/routes/accommodationRoutes')
+app.use('/api/accommodation', accmmodationRoutes)
 
 app.use((err, req, res, next) => {
     console.error(err.stack)

@@ -55,9 +55,11 @@ const AccommodationSchema = new mongoose.Schema({
     default: Date.now
   },
   location: {
-    district: String,   
-    street: String,     
-    addressDetail: String, 
+    district: String,
+    street: String,
+    addressDetail: String,
+    latitude: Number,
+    longitude: Number
   }
 
 });

@@ -26,10 +26,13 @@ const authRoutes = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
 const profileRoutes = require('./src/routes/profileRoutes');
-app.use('/api/customer', profileRoutes );
+app.use('/api/customer', profileRoutes);
 
 const accmmodationRoutes = require('./src/routes/accommodationRoutes')
 app.use('/api/accommodation', accmmodationRoutes)
+
+const favoriteRoutes = require('./src/routes/favoritesRoutes')
+app.use('/api/favorites', favoriteRoutes);
 
 app.use((err, req, res, next) => {
     console.error(err.stack)

@@ -60,8 +60,11 @@ const AccommodationSchema = new mongoose.Schema({
     addressDetail: String,
     latitude: Number,
     longitude: Number
+  },
+  image: {
+    type: "String",
+    default: ''
   }
-
 });
 
 AccommodationSchema.pre('save', function (next) {

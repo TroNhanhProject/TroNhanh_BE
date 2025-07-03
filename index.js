@@ -12,7 +12,8 @@ const authRoutes = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoutes);
 const profileRoutes = require('./src/routes/profileRoutes');
 app.use('/api/customer', profileRoutes );
-
+const favoriteRoutes = require('./src/routes/favoritesRoutes')
+app.use('/api/favorites',favoriteRoutes);
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {

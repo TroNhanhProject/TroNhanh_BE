@@ -1,11 +1,21 @@
-const express = require('express');
+// file TroNhanh_BE/src/routes/accommodationRoutes.js
+
+const express = require("express");
 const router = express.Router();
-const accCtrl = require('../controllers/accomodationController');
-const searchAc = require('../controllers/searchAccomodation')
-router.post('/', accCtrl.createAccommodation);
-router.get('/', accCtrl.getAllAccommodations);
-router.get('/searchAccomodation', searchAc.SearchAccomodationNoUsingAI)
-router.get('/:id', accCtrl.getAccommodationById);
-router.put('/:id', accCtrl.updateAccommodation);
-router.delete('/:id', accCtrl.deleteAccommodation);
+const accommodationController = require("../controllers/accommodationController");
+
+const uploadAccommodation = require("../middleware/accommodationUpload");
+
+const searchAc = require("../controllers/searchAccomodation");
+
+router.get("/", accommodationController.getAllAccommodations);
+router.get("/searchAccomodation", searchAc.SearchAccomodationNoUsingAI);
+router.get("/:id", accommodationController.getAccommodationById);
+
+router.delete("/:id", accommodationController.deleteAccommodation);
+
+
+router.post("/", uploadAccommodation.array("photos", 10), accommodationController.createAccommodation);
+router.put("/:id", uploadAccommodation.array("photos", 10), accommodationController.updateAccommodation);
+
 module.exports = router;

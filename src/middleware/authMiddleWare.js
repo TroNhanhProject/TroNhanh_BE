@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/middleware/authMiddleWare.js
 const jwt = require('jsonwebtoken');
 
 const authMiddleware = (req, res, next) => {

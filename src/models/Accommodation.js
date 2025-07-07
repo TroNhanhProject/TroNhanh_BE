@@ -4,64 +4,62 @@ const AccommodationSchema = new mongoose.Schema({
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true
+    required: true,
   },
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null
+    default: null,
   },
   title: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   description: {
     type: String,
-    required: true
+    required: true,
   },
   price: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
   },
   status: {
     type: String,
     enum: ['available', 'booked', 'unavailable'],
-    default: 'available'
+    default: 'available',
   },
   isApproved: {
     type: Boolean,
-    default: false
+    default: false,
   },
   approvedStatus: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+    default: 'pending',
   },
-  approvedAt: {
-    type: Date
-  },
+  approvedAt: Date,
   rejectedReason: {
     type: String,
-    default: ''
+    default: '',
   },
   createdAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   updatedAt: {
     type: Date,
-    default: Date.now
+    default: Date.now,
   },
   location: {
-    district: String,
     street: String,
-    addressDetail: String,
-    latitude: Number,
-    longitude: Number
-  }
-
+    district: String,
+  },
+  photos: {
+    type: [String], // Sửa thành mảng ảnh
+    default: [],
+  },
 });
 
 AccommodationSchema.pre('save', function (next) {

@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/controllers/authController.js
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -62,6 +63,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (err) {
+    console.error('[LOGIN ERROR]', err); // ⬅️ THÊM DÒNG NÀY
     res.status(500).json({ message: 'Server error' });
   }
 };

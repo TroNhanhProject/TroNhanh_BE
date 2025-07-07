@@ -1,6 +1,4 @@
-
-
-
+// file : TroNhanh_BE/src/middleware/authValidator.js
 const { body, validationResult } = require('express-validator');
 
 const passwordStrongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -29,33 +27,33 @@ exports.registerValidator = [
       'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt'
     ),
 
-    body('gender')
+  body('gender')
     .optional()
-    .isIn(['male','female','other']).withMessage('Giới tính không hợp lệ'),
-body('role')
-  .optional()
-  .custom((value) => {
-    const allowed = ['owner', 'customer'];
-    if (!allowed.includes(value)) {
-      throw new Error('Vai trò không hợp lệ');
-    }
-    return true;
-  })
-,
-  
+    .isIn(['male', 'female', 'other']).withMessage('Giới tính không hợp lệ'),
+  body('role')
+    .optional()
+    .custom((value) => {
+      const allowed = ['owner', 'customer'];
+      if (!allowed.includes(value)) {
+        throw new Error('Vai trò không hợp lệ');
+      }
+      return true;
+    })
+  ,
+
   body('status')
-  .optional()
-  .custom((value) => {
-    const allowed = ['active', 'inactive', 'banned'];
-    if (!allowed.includes(value)) {
-      throw new Error('Trạng thái không hợp lệ');
-    }
-    if (value === 'banned') {
-      throw new Error('Tài khoản đã bị cấm (banned)');
-    }
-    return true;
-  })
-    ,
+    .optional()
+    .custom((value) => {
+      const allowed = ['active', 'inactive', 'banned'];
+      if (!allowed.includes(value)) {
+        throw new Error('Trạng thái không hợp lệ');
+      }
+      if (value === 'banned') {
+        throw new Error('Tài khoản đã bị cấm (banned)');
+      }
+      return true;
+    })
+  ,
 
   (req, res, next) => {
     const errors = validationResult(req);

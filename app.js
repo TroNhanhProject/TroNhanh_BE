@@ -1,41 +1,49 @@
-const express = require('express')
-const mongoose = require('mongoose')
-const cors = require('cors')
-require('dotenv').config()
+// file TroNhanh_BE/app.js
 
-const PORT = process.env.PORT
-const app = express()
+const express = require('express');
+const mongoose = require('mongoose');
+require('dotenv').config();
+const cors = require('cors');
 
-app.use(cors())         //Share tai nguyen giua cac cong khac nhau
-app.use(express.json())
-app.use('/uploads', express.static('uploads'));
+const PORT = process.env.PORT;
+const app = express();
 
-//Connect DB
+//  Middlewares
+app.use(cors());
+app.use(express.json());
+app.use("/uploads", express.static("uploads"));
+
+//  Connect MongoDB
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-//Routes
-//Accomodation, User,...
-
+//  Test route
 app.get('/', (req, res) => {
-    res.send('Welcome to TRO-NHANH')
-})
+    res.send('Welcome to TRO-NHANH');
+});
 
+//  Auth routes
 const authRoutes = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
+//  Profile routes
 const profileRoutes = require('./src/routes/profileRoutes');
-app.use('/api/customer', profileRoutes );
+app.use('/api/customer', profileRoutes);
 
-const accmmodationRoutes = require('./src/routes/accommodationRoutes')
-app.use('/api/accommodation', accmmodationRoutes)
+//  Accommodation routes
+const accommodationRoutes = require('./src/routes/accommodationRoutes');
+console.log("Accommodation route connected ✅");
+app.use('/api/accommodation', accommodationRoutes);
 
+//  Error handler
 app.use((err, req, res, next) => {
-    console.error(err.stack)
-    res.status(500).send('Something went wrong!')
-})
+    console.error(err.stack);
+    res.status(500).send('Something went wrong!');
+});
 
+//  Start server
 app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:${PORT}`)
-})
+    console.log(`Server is running at http://localhost:${PORT}`);
+});
+

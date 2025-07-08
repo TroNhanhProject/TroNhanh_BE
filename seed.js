@@ -10,7 +10,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room0.png",
+    photos: ["/photoss/Accommodation/room0.png"],
     location: {
       district: "Hải Châu",
       street: "Lê Duẩn",
@@ -28,7 +28,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room1.png",
+    photos: ["/photoss/Accommodation/room1.png"],
     location: {
       district: "Sơn Trà",
       street: "Nguyễn Văn Thoại",
@@ -46,7 +46,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room2.png",
+    photos: ["/photoss/Accommodation/room2.png"],
     location: {
       district: "Ngũ Hành Sơn",
       street: "Trần Đại Nghĩa",
@@ -64,7 +64,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room3.png",
+    photos: ["/photoss/Accommodation/room3.png"],
     location: {
       district: "Liên Chiểu",
       street: "Nguyễn Lương Bằng",
@@ -82,7 +82,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room1.png",
+    photos: ["/photoss/Accommodation/room1.png"],
     location: {
       district: "Cẩm Lệ",
       street: "Phạm Như Xương",
@@ -100,7 +100,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room0.png",
+    photos: ["/photoss/Accommodation/room0.png"],
     location: {
       district: "Hải Châu",
       street: "2 Tháng 9",
@@ -118,7 +118,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room3.png",
+    photos: ["/photoss/Accommodation/room3.png"],
     location: {
       district: "Thanh Khê",
       street: "Lý Thái Tổ",
@@ -136,7 +136,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room2.png",
+    photos: ["/photoss/Accommodation/room2.png"],
     location: {
       district: "Sơn Trà",
       street: "Bạch Đằng",
@@ -154,7 +154,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room1.png",
+    photos: ["/photoss/Accommodation/room1.png"],
     location: {
       district: "Hải Châu",
       street: "Núi Thành",
@@ -172,7 +172,7 @@ export const propertySampleData = [
     status: "available",
     isApproved: true,
     approvedStatus: "approved",
-    image: "/images/Accommodation/room0.png",
+    photos: ["/photoss/Accommodation/room0.png"],
     location: {
       district: "Sơn Trà",
       street: "Trần Hưng Đạo",

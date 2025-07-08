@@ -4,10 +4,21 @@ const Accommodation = require('../models/Accommodation');
 
 exports.createAccommodation = async (req, res) => {
   try {
-    console.log("[DEBUG] req.files:", req.files);
+    console.log("[DEBUG] req.body:", req.body);
 
     const { ownerId, title, description, price, status } = req.body;
-    const location = JSON.parse(req.body.location || "{}");
+    const locationRaw = req.body.location || "{}";
+
+    let location;
+    try {
+      location = JSON.parse(locationRaw);
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid location format" });
+    }
+
+    // ✅ Để nguyên full object như FE gửi
+    console.log("[DEBUG] Location parsed:", location);
+
     const photoPaths = req.files?.map(file => `/uploads/accommodation/${file.filename}`) || [];
 
     const newAccommodation = new Accommodation({
@@ -31,6 +42,7 @@ exports.createAccommodation = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 exports.updateAccommodation = async (req, res) => {
   try {

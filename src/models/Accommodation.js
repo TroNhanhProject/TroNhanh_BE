@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/models/Accommodation.js
 const mongoose = require('mongoose');
 
 const AccommodationSchema = new mongoose.Schema({
@@ -52,9 +53,16 @@ const AccommodationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // location: {
+  //   street: String,
+  //   district: String,
+  // },
   location: {
-    street: String,
     district: String,
+    street: String,
+    addressDetail: String,
+    latitude: Number,
+    longitude: Number
   },
   photos: {
     type: [String], // Sửa thành mảng ảnh

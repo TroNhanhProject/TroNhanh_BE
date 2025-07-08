@@ -1,39 +1,66 @@
-const Favourite = require('../models/Favorite');
+const Favorite = require('../models/Favorite');
+const Accommodation = require('../models/Accommodation')
+const mongoose = require('mongoose');
 
-// GET /api/profile/favourites
-exports.getUserFavourites = async (req, res, next) => {
+exports.addFavorite = async (req, res) => {
   try {
-    const favourites = await Favourite.find({ customerId: req.user.id }).populate('accommodationId');
-    res.json(favourites);
-  } catch (err) {
-    next(err);
+    const { accommodationId } = req.body;
+    const customerId = req.user.id;
+    
+    const accommodation = await Accommodation.findById(accommodationId);
+    if (!accommodation) {
+      return res.status(404).json({ message: "Accommodation not found" });
+    }
+
+    const favorite = await Favorite.create({
+      accommodationId, customerId
+    });
+    res.status(200).json({ message: "Accommodation add to favorite", favorite });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
   }
+
 };
 
-// POST /api/profile/favourites
-exports.addFavourite = async (req, res, next) => {
+exports.deleteFavorite = async (req, res) => {
   try {
-    const favourite = new Favourite({
-      customerId: req.user.id,
-      accommodationId: req.body.accommodationId
+    const { accommodationId } = req.body;
+    const customerId = req.user.id;
+    const favorite = await Favorite.findOneAndDelete({
+      accommodationId, customerId
     });
-    const saved = await favourite.save();
-    res.status(201).json(saved);
-  } catch (err) {
-    next(err);
+    if (!favorite) {
+      return res.status(404).json({ message: "Favorite not found" })
+    }
+    res.status(200).json({ message: "Delete favorite successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
   }
-};
+}
 
-// DELETE /api/profile/favourites/:id
-exports.removeFavourite = async (req, res, next) => {
+exports.getFavorite = async (req, res) => {
   try {
-    const deleted = await Favourite.findOneAndDelete({
-      _id: req.params.id,
-      customerId: req.user.id
+    const customerId = req.user.id;
+
+    if (!mongoose.Types.ObjectId.isValid(customerId)) {
+      return res.status(400).json({ message: 'Invalid customerId' });
+    }
+
+    const favorites = await Favorite.find({ customerId })
+      .populate({
+        path: 'accommodationId',
+        model: 'Accommodation'
+      })
+      .exec();
+
+    res.status(200).json({
+      message: 'Favorites fetched successfully',
+      favorites
     });
-    if (!deleted) return res.status(404).json({ message: 'Favorite not found' });
-    res.json({ message: 'Removed successfully' });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };

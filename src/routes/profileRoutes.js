@@ -10,9 +10,8 @@ router.use(authMiddleware);
 router.get('/personal-info', profileController.getProfileInfo);
 
 // ===== Favourites =====
-router.get('/favourites', favoriteController.getUserFavourites);
-router.post('/favourites', favoriteController.addFavourite);
-router.delete('/favourites/:id', favoriteController.removeFavourite);
+router.get('/favorites',favoriteController.getFavorite);
+
 
 // ===== Messages =====
 router.get('/messages', messageController.getUserMessages);

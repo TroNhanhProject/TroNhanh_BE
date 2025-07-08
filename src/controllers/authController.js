@@ -80,5 +80,3 @@ exports.refreshToken = (req, res) => {
     });
   });
 };
-
-

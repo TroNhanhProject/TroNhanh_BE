@@ -36,6 +36,13 @@ const accommodationRoutes = require('./src/routes/accommodationRoutes');
 console.log("Accommodation route connected ✅");
 app.use('/api/accommodation', accommodationRoutes);
 
+const favoriteRoutes = require('./src/routes/favoritesRoutes')
+app.use('/api/favorites', favoriteRoutes);
+
+const roommateRoutes = require('./src/routes/roommateRoutes')
+app.use('/api/roommates', roommateRoutes)
+
+
 //  Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);

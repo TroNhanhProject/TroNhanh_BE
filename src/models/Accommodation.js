@@ -28,8 +28,8 @@ const AccommodationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'booked', 'unavailable'],
-    default: 'available',
+    enum: ['Available', 'Unavailable'],
+    default: 'Available'
   },
   isApproved: {
     type: Boolean,

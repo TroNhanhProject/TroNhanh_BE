@@ -19,11 +19,17 @@ const ReportSchema = new mongoose.Schema({
         type: String,
         require: true
     },
+    adminFeedback: {
+  type: String,
+  default: "",
+},
+
     status:{
         type: String,
         enum: ['Pending', 'Reviewed', 'Approved', 'Rejected'],
         default: 'Pending'
     },
+    
     createAt:{
         type: Date,
         default: Date.now

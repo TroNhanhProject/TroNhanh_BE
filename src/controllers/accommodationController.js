@@ -1,9 +1,25 @@
 // file TroNhanh_BE/src/controllers/accomodationController.js
 const Accommodation = require('../models/Accommodation');
 
+
 exports.createAccommodation = async (req, res) => {
   try {
-    const { ownerId, title, description, price, status, location, photos } = req.body;
+    console.log("[DEBUG] req.body:", req.body);
+
+    const { ownerId, title, description, price, status } = req.body;
+    const locationRaw = req.body.location || "{}";
+
+    let location;
+    try {
+      location = JSON.parse(locationRaw);
+    } catch (e) {
+      return res.status(400).json({ message: "Invalid location format" });
+    }
+
+    // ✅ Để nguyên full object như FE gửi
+    console.log("[DEBUG] Location parsed:", location);
+
+    const photoPaths = req.files?.map(file => `/uploads/accommodation/${file.filename}`) || [];
 
     const newAccommodation = new Accommodation({
       ownerId,
@@ -12,7 +28,7 @@ exports.createAccommodation = async (req, res) => {
       price,
       status,
       location,
-      photos: Array.isArray(photos) ? photos : [photos], // đảm bảo là array
+      photos: photoPaths,
     });
 
     await newAccommodation.save();
@@ -23,7 +39,7 @@ exports.createAccommodation = async (req, res) => {
     });
   } catch (err) {
     console.error("[CREATE ERROR]", err);
-    res.status(500).json({ message: "Server error", error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -33,10 +49,9 @@ exports.updateAccommodation = async (req, res) => {
     console.log("[DEBUG] req.files:", req.files);
 
     const { title, description, price, status } = req.body;
-    const location = req.body.location;
+    const location = JSON.parse(req.body.location || "{}");
     const photoPaths = req.files?.map(file => `/uploads/accommodation/${file.filename}`) || [];
-    console.log("[DEBUG] req.body:", req.body);
-    console.log("[DEBUG] req.body.location:", req.body.location);
+
     const updateData = {
       title,
       description,

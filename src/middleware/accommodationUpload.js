@@ -1,3 +1,6 @@
+// file TroNhanh_BE/src/middleware/accommodationUpload.js
+
+
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");

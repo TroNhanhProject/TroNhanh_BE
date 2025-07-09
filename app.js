@@ -34,6 +34,9 @@ app.use('/api/accommodation', accommodationRoutes)
 const favoriteRoutes = require('./src/routes/favoritesRoutes')
 app.use('/api/favorites', favoriteRoutes);
 
+const reportRoutes = require('./src/routes/reportRoutes')
+app.use('/api/reports',reportRoutes)
+
 const roommateRoutes = require('./src/routes/roommateRoutes')
 app.use('/api/roommates', roommateRoutes)
 

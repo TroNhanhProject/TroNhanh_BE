@@ -9,7 +9,7 @@ const ReportSchema = new mongoose.Schema({
     reportedUserId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        require: true
+        require: false
     },
     type: {
         type: String,

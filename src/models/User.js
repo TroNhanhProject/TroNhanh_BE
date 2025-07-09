@@ -44,6 +44,19 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'inactive', 'banned'],
       default: 'active'
+    },
+    isMembership: {
+      type: String,
+      enum: ['active', 'inactive', 'none'],
+      default: 'none'
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {

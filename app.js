@@ -36,6 +36,11 @@ const accommodationRoutes = require('./src/routes/accommodationRoutes');
 console.log("Accommodation route connected ✅");
 app.use('/api/accommodation', accommodationRoutes);
 
+//  Admin routes
+const adminRoutes = require('./src/routes/adminRoutes');
+console.log("Admin route connected ✅");
+app.use('/api/admin', adminRoutes);
+
 //  Error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);

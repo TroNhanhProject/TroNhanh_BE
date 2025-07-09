@@ -267,7 +267,7 @@ const lockUnlockUser = async (req, res) => {
     }
 
     const oldStatus = targetUser.status;
-    const newStatus = action === 'lock' ? 'banned' : 'active';
+    const newStatus = action === 'lock' ? 'inactive' : 'active';
 
     // BR-LOA-04: Lock Retains User Data Rule (no data deletion)
     const updatedUser = await User.findByIdAndUpdate(

@@ -37,6 +37,9 @@ app.use('/api/favorites', favoriteRoutes);
 const roommateRoutes = require('./src/routes/roommateRoutes')
 app.use('/api/roommates', roommateRoutes)
 
+const reportRoutes = require('./src/routes/reportRoutes')
+app.use('/api/reports',reportRoutes)
+
 app.use((err, req, res, next) => {
     console.error(err.stack)
     res.status(500).send('Something went wrong!')

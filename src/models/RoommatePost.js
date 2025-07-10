@@ -13,7 +13,7 @@ const roommatePostSchema = new mongoose.Schema({
     required: true
   },
   intro: String, // giới thiệu bản thân
-  genderPreference: { type: String, enum: ['Male', 'Female', 'Any'], default: 'Any' },
+  genderPreference: { type: String, enum: ['male', 'female', 'other'], default: 'Any' },
   habits: [String], // ví dụ: ["Clean", "Quiet", "Smoker"]
   createdAt: {
     type: Date,

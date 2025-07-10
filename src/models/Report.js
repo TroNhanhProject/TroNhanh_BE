@@ -9,22 +9,28 @@ const ReportSchema = new mongoose.Schema({
     reportedUserId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        require: true
+        require: false,
     },
     type: {
         type: String,
-        require: true
+        require: true,
     },
     content: {
         type: String,
-        require: true
+        require: true,
     },
-    status:{
+    adminFeedback: {
+        type: String,
+        default: "",
+    },
+
+    status: {
         type: String,
         enum: ['Pending', 'Reviewed', 'Approved', 'Rejected'],
         default: 'Pending'
     },
-    createAt:{
+
+    createAt: {
         type: Date,
         default: Date.now
     }

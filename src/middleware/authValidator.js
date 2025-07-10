@@ -1,6 +1,3 @@
-
-
-
 const { body, validationResult } = require('express-validator');
 
 const passwordStrongRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
@@ -29,33 +26,33 @@ exports.registerValidator = [
       'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt'
     ),
 
-  body('gender')
+    body('gender')
     .optional()
-    .isIn(['male', 'female', 'other']).withMessage('Giới tính không hợp lệ'),
-  body('role')
-    .optional()
-    .custom((value) => {
-      const allowed = ['owner', 'customer'];
-      if (!allowed.includes(value)) {
-        throw new Error('Vai trò không hợp lệ');
-      }
-      return true;
-    })
-  ,
-
+    .isIn(['male','female','other']).withMessage('Giới tính không hợp lệ'),
+body('role')
+  .optional()
+  .custom((value) => {
+    const allowed = ['owner', 'customer'];
+    if (!allowed.includes(value)) {
+      throw new Error('Vai trò không hợp lệ');
+    }
+    return true;
+  })
+,
+  
   body('status')
-    .optional()
-    .custom((value) => {
-      const allowed = ['active', 'inactive', 'banned'];
-      if (!allowed.includes(value)) {
-        throw new Error('Trạng thái không hợp lệ');
-      }
-      if (value === 'banned') {
-        throw new Error('Tài khoản đã bị cấm (banned)');
-      }
-      return true;
-    })
-  ,
+  .optional()
+  .custom((value) => {
+    const allowed = ['active', 'inactive', 'banned'];
+    if (!allowed.includes(value)) {
+      throw new Error('Trạng thái không hợp lệ');
+    }
+    if (value === 'banned') {
+      throw new Error('Tài khoản đã bị cấm (banned)');
+    }
+    return true;
+  })
+    ,
 
   (req, res, next) => {
     const errors = validationResult(req);
@@ -79,6 +76,28 @@ exports.loginValidator = [
 
   body('password')
     .notEmpty().withMessage('Mật khẩu không được để trống'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array().map(err => ({
+          msg: err.msg,
+          param: err.path
+        }))
+      });
+    }
+    next();
+  }
+];
+
+exports.resetPasswordValidator = [
+  body('password')
+    .notEmpty().withMessage('Mật khẩu không được để trống').bail()
+    .isLength({ min: 8 }).withMessage('Mật khẩu phải có ít nhất 8 ký tự').bail()
+    .matches(passwordStrongRegex).withMessage(
+      'Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt'
+    ),
 
   (req, res, next) => {
     const errors = validationResult(req);

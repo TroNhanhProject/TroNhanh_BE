@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+
 const {
   getAllUsers,
   getUserStats,
@@ -10,6 +11,8 @@ const {
   deleteUser,
   getAuditLogs
 } = require('../controllers/AdminController/UserController');
+
+const { getAllAccommodationsAdmin, getAccommodationDetailAdmin, approveAccommodationAdmin, deleteAccommodationAdmin } = require('../controllers/AdminController/AccommodationController');
 
 // Import admin authentication middleware
 const { adminAuth } = require('../middleware/adminAuth');
@@ -33,5 +36,17 @@ router.delete('/users/:id', deleteUser);             // DELETE /api/admin/users/
 // Additional endpoints
 router.get('/users/:id', getUserById);               // GET /api/admin/users/:id
 router.get('/audit-logs', getAuditLogs);            // GET /api/admin/audit-logs
+
+// UC-Admin-05: Admin view all accommodation posts
+router.get('/accommodations', getAllAccommodationsAdmin); // GET /api/admin/accommodations
+
+// UC-Admin-06: Admin view accommodation post details
+router.get('/accommodations/:id', getAccommodationDetailAdmin); // GET /api/admin/accommodations/:id
+
+// UC-Admin-Approve: Admin approve/reject accommodation post
+router.put('/accommodations/:id/approve', approveAccommodationAdmin); // PUT /api/admin/accommodations/:id/approve
+
+// UC-Admin-07: Admin soft delete accommodation post
+router.put('/accommodations/:id/delete', deleteAccommodationAdmin); // PUT /api/admin/accommodations/:id/delete
 
 module.exports = router;

@@ -12,10 +12,12 @@ const auditLogSchema = new mongoose.Schema({
         enum: [
             'VIEW_USER_LIST',
             'LOCK_USER',
-            'UNLOCK_USER', 
+            'UNLOCK_USER',
             'EDIT_USER',
             'DELETE_USER',
-            'CREATE_USER'
+            'CREATE_USER',
+            'delete_accommodation',
+            'approve_accommodation'
         ]
     },
     targetUserId: {

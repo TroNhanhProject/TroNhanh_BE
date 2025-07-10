@@ -36,11 +36,15 @@ const AccommodationSchema = new mongoose.Schema({
   },
   approvedStatus: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'deleted'],
     default: 'pending',
   },
   approvedAt: Date,
   rejectedReason: {
+    type: String,
+    default: '',
+  },
+  deletedReason: {
     type: String,
     default: '',
   },

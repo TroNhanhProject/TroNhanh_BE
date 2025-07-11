@@ -17,7 +17,10 @@ const auditLogSchema = new mongoose.Schema({
             'DELETE_USER',
             'CREATE_USER',
             'delete_accommodation',
-            'approve_accommodation'
+            'approve_accommodation',
+            'CREATE_MEMBERSHIP_PACKAGE',
+            'UPDATE_MEMBERSHIP_PACKAGE',
+            'DELETE_MEMBERSHIP_PACKAGE'
         ]
     },
     targetUserId: {

@@ -14,6 +14,14 @@ const {
 
 const { getAllAccommodationsAdmin, getAccommodationDetailAdmin, approveAccommodationAdmin, deleteAccommodationAdmin } = require('../controllers/AdminController/AccommodationController');
 
+const { 
+  createMembershipPackage, 
+  getAllMembershipPackages, 
+  getMembershipPackageById, 
+  updateMembershipPackage, 
+  deleteMembershipPackage 
+} = require('../controllers/AdminController/MembershipController');
+
 // Import admin authentication middleware
 const { adminAuth } = require('../middleware/adminAuth');
 
@@ -48,5 +56,12 @@ router.put('/accommodations/:id/approve', approveAccommodationAdmin); // PUT /ap
 
 // UC-Admin-07: Admin soft delete accommodation post
 router.put('/accommodations/:id/delete', deleteAccommodationAdmin); // PUT /api/admin/accommodations/:id/delete
+
+// UC-Admin-14: Membership Package Management
+router.post('/membership-packages', createMembershipPackage);        // POST /api/admin/membership-packages
+router.get('/membership-packages', getAllMembershipPackages);        // GET /api/admin/membership-packages
+router.get('/membership-packages/:id', getMembershipPackageById);    // GET /api/admin/membership-packages/:id
+router.put('/membership-packages/:id', updateMembershipPackage);     // PUT /api/admin/membership-packages/:id
+router.delete('/membership-packages/:id', deleteMembershipPackage);  // DELETE /api/admin/membership-packages/:id
 
 module.exports = router;

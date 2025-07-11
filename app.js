@@ -42,6 +42,10 @@ app.use('/api/favorites', favoriteRoutes);
 const roommateRoutes = require('./src/routes/roommateRoutes')
 app.use('/api/roommates', roommateRoutes)
 
+//  Admin routes
+const adminRoutes = require('./src/routes/adminRoutes');
+console.log("Admin route connected ✅");
+app.use('/api/admin', adminRoutes);
 
 //  Error handler
 app.use((err, req, res, next) => {

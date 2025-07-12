@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/routes/adminRoutes.js
 const express = require('express');
 const router = express.Router();
 
@@ -14,12 +15,12 @@ const {
 
 const { getAllAccommodationsAdmin, getAccommodationDetailAdmin, approveAccommodationAdmin, deleteAccommodationAdmin } = require('../controllers/AdminController/AccommodationController');
 
-const { 
-  createMembershipPackage, 
-  getAllMembershipPackages, 
-  getMembershipPackageById, 
-  updateMembershipPackage, 
-  deleteMembershipPackage 
+const {
+  createMembershipPackage,
+  getAllMembershipPackages,
+  getMembershipPackageById,
+  updateMembershipPackage,
+  deleteMembershipPackage
 } = require('../controllers/AdminController/MembershipController');
 
 // Import admin authentication middleware

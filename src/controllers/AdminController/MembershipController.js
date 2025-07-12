@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/controllers/AdminController/MembershipController.js
 const MembershipPackage = require('../../models/MembershipPackage');
 const AuditLog = require('../../models/AuditLog');
 
@@ -10,11 +11,11 @@ exports.createMembershipPackage = async (req, res) => {
     }
 
     const { packageName, price, duration, description, postsAllowed, features } = req.body;
-    
+
     // Validation
     if (!packageName || !price || !duration || !description || !postsAllowed) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: packageName, price, duration, description, postsAllowed' 
+      return res.status(400).json({
+        message: 'Missing required fields: packageName, price, duration, description, postsAllowed'
       });
     }
 
@@ -37,10 +38,10 @@ exports.createMembershipPackage = async (req, res) => {
     }
 
     // Check for duplicate package name (BR-CMP-01)
-    const existingPackage = await MembershipPackage.findOne({ 
-      packageName: { $regex: new RegExp(`^${packageName}$`, 'i') } 
+    const existingPackage = await MembershipPackage.findOne({
+      packageName: { $regex: new RegExp(`^${packageName}$`, 'i') }
     });
-    
+
     if (existingPackage) {
       return res.status(400).json({ message: 'Package name already exists' });
     }
@@ -78,18 +79,18 @@ exports.createMembershipPackage = async (req, res) => {
 
   } catch (err) {
     console.error('[CREATE MEMBERSHIP PACKAGE ERROR]', err);
-    
+
     // Handle duplicate key error
     if (err.code === 11000) {
       return res.status(400).json({ message: 'Package name already exists' });
     }
-    
+
     // Handle validation errors
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
       return res.status(400).json({ message: errors.join(', ') });
     }
-    
+
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -98,14 +99,14 @@ exports.createMembershipPackage = async (req, res) => {
 exports.getAllMembershipPackages = async (req, res) => {
   try {
     const { page = 1, limit = 20, isActive, includeDeleted = 'false' } = req.query;
-    
+
     const filter = {};
-    
+
     // Exclude deleted packages by default
     if (includeDeleted === 'false') {
       filter.isDeleted = false;
     }
-    
+
     if (isActive !== undefined) {
       filter.isActive = isActive === 'true';
     }
@@ -130,6 +131,23 @@ exports.getAllMembershipPackages = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Cho Owner hoặc người dùng public truy cập
+exports.getPublicMembershipPackages = async (req, res) => {
+  try {
+    const packages = await MembershipPackage.find({
+      isDeleted: false,
+      isActive: true
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, packages });
+  } catch (err) {
+    console.error('[GET PUBLIC MEMBERSHIP PACKAGES ERROR]', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+
 
 // Get single membership package details
 exports.getMembershipPackageById = async (req, res) => {
@@ -163,7 +181,7 @@ exports.updateMembershipPackage = async (req, res) => {
     }
 
     const { packageName, price, duration, description, postsAllowed, features, isActive } = req.body;
-    
+
     const package = await MembershipPackage.findById(req.params.id);
     if (!package) {
       return res.status(404).json({ message: 'Membership package not found' });
@@ -196,11 +214,11 @@ exports.updateMembershipPackage = async (req, res) => {
 
     // Check for duplicate package name if name is being changed
     if (packageName && packageName !== package.packageName) {
-      const existingPackage = await MembershipPackage.findOne({ 
+      const existingPackage = await MembershipPackage.findOne({
         packageName: { $regex: new RegExp(`^${packageName}$`, 'i') },
         _id: { $ne: req.params.id }
       });
-      
+
       if (existingPackage) {
         return res.status(400).json({ message: 'Package name already exists' });
       }
@@ -239,16 +257,16 @@ exports.updateMembershipPackage = async (req, res) => {
 
   } catch (err) {
     console.error('[UPDATE MEMBERSHIP PACKAGE ERROR]', err);
-    
+
     if (err.code === 11000) {
       return res.status(400).json({ message: 'Package name already exists' });
     }
-    
+
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors).map(e => e.message);
       return res.status(400).json({ message: errors.join(', ') });
     }
-    
+
     res.status(500).json({ message: 'Server error' });
   }
 };

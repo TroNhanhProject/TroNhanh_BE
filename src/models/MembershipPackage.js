@@ -1,3 +1,4 @@
+// file: TroNhanh_BE/src/models/MembershipPackage.js
 const mongoose = require('mongoose');
 
 const membershipPackageSchema = new mongoose.Schema({

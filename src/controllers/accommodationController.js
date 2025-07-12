@@ -1,23 +1,39 @@
 // file TroNhanh_BE/src/controllers/accomodationController.js
 const Accommodation = require('../models/Accommodation');
-
+const Payment = require('../models/Payment');
+const MembershipPackage = require('../models/MembershipPackage');
 
 exports.createAccommodation = async (req, res) => {
   try {
-    console.log("[DEBUG] req.body:", req.body);
-
     const { ownerId, title, description, price, status } = req.body;
     const locationRaw = req.body.location || "{}";
 
+    // 🔒 Kiểm tra membership hiện tại
+    const latestPayment = await Payment.findOne({
+      ownerId,
+      status: 'Paid'
+    }).sort({ createAt: -1 }).populate('membershipPackageId');
+
+    if (!latestPayment) {
+      return res.status(403).json({ message: "Bạn cần mua gói thành viên trước khi đăng chỗ ở." });
+    }
+
+    const durationDays = latestPayment.membershipPackageId?.duration || 0;
+    const createdAt = latestPayment.createdAt; // ✅ đúng key
+
+    const expiredAt = new Date(createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+    if (new Date() > expiredAt) {
+      return res.status(403).json({ message: "Gói thành viên của bạn đã hết hạn. Hãy gia hạn để tiếp tục đăng chỗ ở." });
+    }
+
+    // ✅ Tiếp tục tạo accommodation nếu membership còn hiệu lực
     let location;
     try {
       location = JSON.parse(locationRaw);
     } catch (e) {
       return res.status(400).json({ message: "Invalid location format" });
     }
-
-    // ✅ Để nguyên full object như FE gửi
-    console.log("[DEBUG] Location parsed:", location);
 
     const photoPaths = req.files?.map(file => `/uploads/accommodation/${file.filename}`) || [];
 

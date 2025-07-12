@@ -1,5 +1,4 @@
 // file TroNhanh_BE/app.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 require('dotenv').config();
@@ -46,6 +45,16 @@ app.use('/api/roommates', roommateRoutes)
 const adminRoutes = require('./src/routes/adminRoutes');
 console.log("Admin route connected ✅");
 app.use('/api/admin', adminRoutes);
+
+//  Membership routes
+const membershipRoutes = require('./src/routes/membershipRoutes');
+console.log("✅ membershipRoutes connected");
+app.use('/api/membership-packages', membershipRoutes);
+
+//  Payment routes
+const paymentRoutes = require('./src/routes/paymentRoutes');
+app.use('/api/payment', paymentRoutes);
+
 
 //  Error handler
 app.use((err, req, res, next) => {

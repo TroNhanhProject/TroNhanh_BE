@@ -23,6 +23,12 @@ const {
   deleteMembershipPackage
 } = require('../controllers/AdminController/MembershipController');
 
+const {
+  getTransactionHistory,
+  getTransactionStats,
+  getTransactionById
+} = require('../controllers/AdminController/TransactionController');
+
 // Import admin authentication middleware
 const { adminAuth } = require('../middleware/adminAuth');
 
@@ -64,5 +70,10 @@ router.get('/membership-packages', getAllMembershipPackages);        // GET /api
 router.get('/membership-packages/:id', getMembershipPackageById);    // GET /api/admin/membership-packages/:id
 router.put('/membership-packages/:id', updateMembershipPackage);     // PUT /api/admin/membership-packages/:id
 router.delete('/membership-packages/:id', deleteMembershipPackage);  // DELETE /api/admin/membership-packages/:id
+
+// UC-Admin-11: View Transaction History
+router.get('/transactions', getTransactionHistory);                  // GET /api/admin/transactions
+router.get('/transactions/stats', getTransactionStats);              // GET /api/admin/transactions/stats  
+router.get('/transactions/:id', getTransactionById);                 // GET /api/admin/transactions/:id
 
 module.exports = router;

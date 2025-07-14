@@ -1,3 +1,4 @@
+// file TroNhanh_BE/src/models/Report.js
 const mongoose = require('mongoose')
 
 const ReportSchema = new mongoose.Schema({
@@ -9,7 +10,7 @@ const ReportSchema = new mongoose.Schema({
     reportedUserId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        require: true
+        require: false
     },
     type: {
         type: String,
@@ -19,12 +20,18 @@ const ReportSchema = new mongoose.Schema({
         type: String,
         require: true
     },
-    status:{
+    adminFeedback: {
+        type: String,
+        default: "",
+    },
+
+    status: {
         type: String,
         enum: ['Pending', 'Reviewed', 'Approved', 'Rejected'],
         default: 'Pending'
     },
-    createAt:{
+
+    createAt: {
         type: Date,
         default: Date.now
     }

@@ -55,6 +55,10 @@ app.use('/api/membership-packages', membershipRoutes);
 const paymentRoutes = require('./src/routes/paymentRoutes');
 app.use('/api/payment', paymentRoutes);
 
+// Owner Report routes
+const reportRoutes = require('./src/routes/reportRoutes');
+app.use('/api/reports', reportRoutes);
+
 
 //  Error handler
 app.use((err, req, res, next) => {

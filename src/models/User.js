@@ -55,12 +55,29 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: {
       type: Date,
       default: null,
+    },
+    isMembership: {
+      type: String,
+      enum: ['active', 'inactive', 'none'],
+      default: 'none'
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {
     timestamps: true
   }
 );
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
 // Mã hóa mật khẩu trước khi lưu
 userSchema.pre('save', async function (next) {

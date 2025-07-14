@@ -36,8 +36,8 @@ const AccommodationSchema = new mongoose.Schema({
   },
   approvedStatus: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+    enum: ['pending', 'approved', 'rejected', 'deleted'],
+    default: 'pending',
   },
   approvedAt: {
     type: Date

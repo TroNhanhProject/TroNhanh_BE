@@ -22,23 +22,41 @@ app.get('/', (req, res) => {
     res.send('Welcome to TRO-NHANH')
 })
 
+//  Auth routes
 const authRoutes = require('./src/routes/authRoutes');
 app.use('/api/auth', authRoutes);
 
+//  Profile routes
 const profileRoutes = require('./src/routes/profileRoutes');
 app.use('/api/customer', profileRoutes);
 
+//  Accommodation routes
 const accommodationRoutes = require('./src/routes/accommodationRoutes')
 app.use('/api/accommodation', accommodationRoutes)
 
+//  Favorite routes
 const favoriteRoutes = require('./src/routes/favoritesRoutes')
 app.use('/api/favorites', favoriteRoutes);
 
+//  Roommate routes
 const roommateRoutes = require('./src/routes/roommateRoutes')
 app.use('/api/roommates', roommateRoutes)
 
+//  Report routes
 const reportRoutes = require('./src/routes/reportRoutes')
-app.use('/api/reports',reportRoutes)
+app.use('/api/reports', reportRoutes)
+
+//  Admin routes
+const adminRoutes = require('./src/routes/adminRoutes');
+app.use('/api/admin', adminRoutes);
+
+//  Membership routes
+const membershipRoutes = require('./src/routes/membershipRoutes');
+app.use('/api/membership-packages', membershipRoutes);
+
+//  Payment routes
+const paymentRoutes = require('./src/routes/paymentRoutes');
+app.use('/api/payment', paymentRoutes);
 
 app.use((err, req, res, next) => {
     console.error(err.stack)

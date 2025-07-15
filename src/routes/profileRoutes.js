@@ -4,6 +4,7 @@ const authMiddleware = require('../middleware/authMiddleWare');
 const profileController = require('../controllers/profileController');
 const favoriteController = require('../controllers/favoriteController');
 const messageController = require('../controllers/messageController');
+const reportController = require('../controllers/reportController')
 router.use(authMiddleware);
 
 // ===== Personal Info =====
@@ -20,6 +21,9 @@ router.delete('/messages/:id', messageController.deleteMessage);
 
 const multer = require('multer');
 const path = require('path');
+
+// ===== Reports ======
+router.get('/my-reports',reportController.getReportsByUser)
 
 const storage = multer.diskStorage({
   destination: './uploads/avatars',

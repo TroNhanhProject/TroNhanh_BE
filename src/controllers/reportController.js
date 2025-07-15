@@ -31,15 +31,16 @@ exports.createReport = async (req, res) => {
 
 exports.getReportsByUser = async (req, res) => {
     try {
-        const { reporterId } = req.query;
+const reporterId = req.user.id;
 
-        if (!reporterId) {
-            return res.status(400).json({ message: "Missing reporterId" });
-        }
+if (!reporterId) {
+    return res.status(400).json({ message: "Missing reporterId" });
+}
 
-        const reports = await Report.find({ reporterId }).sort({ createAt: -1 });
+const reports = await Report.find({ reporterId }).sort({ createAt: -1 });
 
-        res.status(200).json({ reports });
+return res.status(200).json({ reports });
+
     } catch (err) {
         console.error("❌ Error fetching reports:", err);
         res.status(500).json({ message: "Server error" });

@@ -19,7 +19,12 @@ exports.createAccommodation = async (req, res) => {
     }
 
     const durationDays = latestPayment.membershipPackageId?.duration || 0;
-    const createdAt = latestPayment.createdAt; // ✅ đúng key
+    const createdAt = latestPayment.createAt; // ✅ sửa từ createdAt thành createAt
+
+    // Check if createAt exists and is a valid date
+    if (!createdAt || !(createdAt instanceof Date) || isNaN(createdAt.getTime())) {
+      return res.status(500).json({ message: "Dữ liệu thanh toán không hợp lệ. Vui lòng liên hệ admin." });
+    }
 
     const expiredAt = new Date(createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
 

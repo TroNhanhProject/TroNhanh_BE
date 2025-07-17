@@ -19,7 +19,7 @@ exports.createAccommodation = async (req, res) => {
     }
 
     const durationDays = latestPayment.membershipPackageId?.duration || 0;
-    const createdAt = latestPayment.createdAt; // ✅ đúng key
+    const createdAt = latestPayment.createAt; // ✅ đúng key
 
     const expiredAt = new Date(createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
 

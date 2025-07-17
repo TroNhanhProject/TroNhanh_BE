@@ -1,5 +1,5 @@
 const Report = require('../models/Report')
-
+const User = require('../models/User')
 exports.createReport = async(req,res)=>{
     try{
         const report = new Report(req.body);
@@ -19,5 +19,14 @@ exports.getMyReports = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+exports.getOwners = async (req, res) => {
+  try {
+    const owners = await User.find({ role: 'owner' }).select('_id name role avatar');
+    res.status(200).json(owners);
+  } catch (error) {
+    console.error("❌ Failed to fetch owners:", error);
+    res.status(500).json({ message: "Failed to fetch owners" });
   }
 };

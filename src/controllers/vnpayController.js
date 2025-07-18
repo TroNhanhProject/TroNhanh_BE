@@ -196,7 +196,7 @@ exports.vnpayReturn = async (req, res) => {
         "http://localhost:3000/owner/membership-result?success=false"
       );
     } else if (type === "booking") {
-      return res.redirect("http://localhost:3000/booking-result?success=false");
+      return res.redirect("http://localhost:3000/customer/booking-result?success=false");
     } else {
       return res.redirect("http://localhost:3000/");
     }

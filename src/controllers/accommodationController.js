@@ -121,10 +121,9 @@ exports.getAllAccommodations = async (req, res) => {
     const filter = { approvedStatus: "approved" };
     if (ownerId) filter.ownerId = ownerId;
 
-    const accommodations = await Accommodation.find(filter).populate(
-      "ownerId",
-      "name email"
-    );
+    const accommodations = await Accommodation.find(filter)
+      .populate("ownerId", "name email")
+      .populate("customerId", "name email phone");
 
     res.status(200).json(accommodations);
   } catch (err) {
@@ -139,7 +138,9 @@ exports.getAccommodationById = async (req, res) => {
     const acc = await Accommodation.findOne({
       _id: req.params.id,
       approvedStatus: "approved",
-    }).populate("ownerId", "name email");
+    })
+      .populate("ownerId", "name email")
+      .populate("customerId", "name email phone");
     if (!acc)
       return res.status(404).json({ message: "Accommodation not found" });
     res.status(200).json(acc);
@@ -151,10 +152,20 @@ exports.getAccommodationById = async (req, res) => {
 
 exports.deleteAccommodation = async (req, res) => {
   try {
-    const deleted = await Accommodation.findByIdAndDelete(req.params.id);
-    if (!deleted)
+    // Kiểm tra accommodation trước khi xóa
+    const accommodation = await Accommodation.findById(req.params.id);
+    if (!accommodation) {
       return res.status(404).json({ message: "Accommodation not found" });
+    }
 
+    // Không cho phép xóa nếu đang trong trạng thái Booked
+    if (accommodation.status === "Booked") {
+      return res.status(400).json({
+        message: "Không thể xóa accommodation này vì đang có khách hàng đặt phòng!"
+      });
+    }
+
+    const deleted = await Accommodation.findByIdAndDelete(req.params.id);
     res.status(200).json({ message: "Accommodation deleted successfully" });
   } catch (err) {
     console.error("[DELETE ERROR]", err);

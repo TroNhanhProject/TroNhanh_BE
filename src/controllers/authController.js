@@ -56,7 +56,19 @@ exports.login = async (req, res) => {
     // Tìm user theo email
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: `Email doesn't exist` });
-    if (!user.verified) {
+ 
+  if (user.isDeleted) {
+      return res.status(403).json({ message: "This account has been deleted." });
+    }
+    // Kiểm tra trạng thái tài khoản
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Your account is not yet activated by admin." });
+    }
+
+    if (user.status === "banned") {
+      return res.status(403).json({ message: "Your account has been banned. Please contact support." });
+    }
+       if (!user.verified) {
       return res.status(400).json({ message: "Email is not verified" });
     }
     // So sánh mật khẩu

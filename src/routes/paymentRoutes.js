@@ -6,6 +6,6 @@ const { getCurrentMembershipOfUser } = require('../controllers/paymentController
 
 router.post('/create', createPaymentUrl); // POST /api/payment/create
 router.get('/vnpay_return', vnpayReturn);
-router.get('/current/:userId', getCurrentMembershipOfUser); // ✅ Thêm dòng này
+router.get('/current/:userId', getCurrentMembershipOfUser); 
 
 module.exports = router;

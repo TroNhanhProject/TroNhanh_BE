@@ -134,6 +134,10 @@ exports.getAllAccommodations = async (req, res) => {
 
 exports.getAccommodationById = async (req, res) => {
   try {
+    console.log(" >>>[DEBUG] Params:", req.params); // 👈 In ra _id từ URL
+    console.log(" >>>[DEBUG] Query:", req.query); // 👈 Nếu bạn dùng query params
+    console.log(" >>>[DEBUG] Body:", req.body); // 👈 Trong trường hợp lỡ gọi bằng POST
+
     // only return if approved
     const acc = await Accommodation.findOne({
       _id: req.params.id,

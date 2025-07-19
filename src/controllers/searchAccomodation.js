@@ -4,7 +4,10 @@ exports.SearchAccomodationNoUsingAI = async (req, res) => {
     try {
         const { district, street, addressDetail } = req.query;
 
-        const query = {};
+        const query = {
+            approvedStatus: "approved", // Chỉ lấy accommodation đã được approve
+            status: { $ne: "Unavailable" } // Loại bỏ accommodation có status "Unavailable"
+        };
 
         if (district) query["location.district"] = district;
         if (street) query["location.street"] = { $regex: street, $options: "i" };

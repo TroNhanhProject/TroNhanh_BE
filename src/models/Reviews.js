@@ -2,6 +2,16 @@ const mongoose = require('mongoose')
 
 const reviewSchema = new mongoose.Schema(
   {
+    accommodationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Accommodation',
+      required: true
+    },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
     user: {
       _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
       name: String,
@@ -11,7 +21,7 @@ const reviewSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 1,
-      max: 10,
+      max: 5, // Đổi từ 10 thành 5
     },
     comment: {
       type: String,
@@ -23,6 +33,10 @@ const reviewSchema = new mongoose.Schema(
     weeksAgo: {
       type: Number,
     },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
   }
   // { _id: false } // avoid nested review _id
 );

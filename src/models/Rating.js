@@ -13,10 +13,10 @@ const RatingSchema = new mongoose.Schema({
     },
     rating: {
         type: Number,
-        require:true
+        require: true
     },
     comment: String,
-    createAt: {
+    createdAt: {
         type: Date,
         default: Date.now
     }

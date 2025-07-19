@@ -21,7 +21,9 @@ const auditLogSchema = new mongoose.Schema({
             'approve_accommodation',
             'CREATE_MEMBERSHIP_PACKAGE',
             'UPDATE_MEMBERSHIP_PACKAGE',
-            'DELETE_MEMBERSHIP_PACKAGE'
+            'DELETE_MEMBERSHIP_PACKAGE',
+            'lock_user',
+            'resolve_report'
         ]
     },
     targetUserId: {
@@ -48,6 +50,21 @@ const auditLogSchema = new mongoose.Schema({
     userAgent: {
         type: String,
         required: false
+    },
+    // Additional fields for report management
+    targetReportId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Report',
+        required: false
+    },
+    targetAccommodationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Accommodation',
+        required: false
+    },
+    metadata: {
+        type: mongoose.Schema.Types.Mixed, // Store additional action metadata
+        required: false
     }
 }, {
     timestamps: true
@@ -57,5 +74,7 @@ const auditLogSchema = new mongoose.Schema({
 auditLogSchema.index({ adminId: 1, createdAt: -1 });
 auditLogSchema.index({ targetUserId: 1, createdAt: -1 });
 auditLogSchema.index({ action: 1, createdAt: -1 });
+auditLogSchema.index({ targetReportId: 1, createdAt: -1 });
+auditLogSchema.index({ targetAccommodationId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('AuditLog', auditLogSchema);

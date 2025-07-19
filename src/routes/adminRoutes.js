@@ -29,6 +29,13 @@ const {
   getTransactionById
 } = require('../controllers/AdminController/TransactionController');
 
+const {
+  getAllReports,
+  getReportById,
+  resolveReport,
+  getReportStats
+} = require('../controllers/AdminController/ReportController');
+
 // Import admin authentication middleware
 const { adminAuth } = require('../middleware/adminAuth');
 
@@ -75,5 +82,11 @@ router.delete('/membership-packages/:id', deleteMembershipPackage);  // DELETE /
 router.get('/transactions', getTransactionHistory);                  // GET /api/admin/transactions
 router.get('/transactions/stats', getTransactionStats);              // GET /api/admin/transactions/stats  
 router.get('/transactions/:id', getTransactionById);                 // GET /api/admin/transactions/:id
+
+// UC-Admin-12 to UC-Admin-15: Report Management
+router.get('/reports', getAllReports);                               // GET /api/admin/reports
+router.get('/reports/stats', getReportStats);                        // GET /api/admin/reports/stats
+router.get('/reports/:id', getReportById);                           // GET /api/admin/reports/:id
+router.put('/reports/:id/resolve', resolveReport);                   // PUT /api/admin/reports/:id/resolve
 
 module.exports = router;

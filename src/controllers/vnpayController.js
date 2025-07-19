@@ -7,6 +7,7 @@ const url = require("url");
 const Payment = require("../models/Payment");
 const MembershipPackage = require("../models/MembershipPackage");
 const Booking = require("../models/Booking");
+const Accommodation = require("../models/Accommodation");
 
 function sortAndBuildSignData(obj) {
   let keys = Object.keys(obj).sort();
@@ -173,15 +174,39 @@ exports.vnpayReturn = async (req, res) => {
       } else if (type === "booking") {
         // update booking status to paid
         console.log("Updating bookingId:", bookingId);
-        await Booking.findByIdAndUpdate(bookingId, {
+        const updatedBooking = await Booking.findByIdAndUpdate(bookingId, {
           status: "paid",
           paymentInfo: {
             vnpayTransactionId: query.vnp_TransactionNo || query.vnp_TxnRef,
             amount: query.vnp_Amount / 100,
             paidAt: new Date(),
           },
-        });
-        console.log("✅ Đã cập nhật trạng thái booking thành paid.");
+        }, { new: true });
+
+        // Update accommodation status and customerId after successful booking payment
+        if (updatedBooking) {
+          try {
+            console.log("📋 Booking data:", updatedBooking);
+            console.log("🏠 Updating accommodation ID:", updatedBooking.propertyId);
+            console.log("👤 Setting customerId to:", updatedBooking.userId);
+
+            const accommodationUpdate = await Accommodation.findByIdAndUpdate(
+              updatedBooking.propertyId,
+              {
+                customerId: updatedBooking.userId,
+                status: "Booked"
+              },
+              { new: true }
+            );
+
+            console.log("🏠 Updated accommodation:", accommodationUpdate);
+            console.log("✅ Đã cập nhật accommodation với customerId và status = Booked.");
+          } catch (accommodationError) {
+            console.error("❌ Lỗi khi cập nhật accommodation:", accommodationError);
+          }
+        } else {
+          console.log("❌ Không tìm thấy booking sau khi update");
+        } console.log("✅ Đã cập nhật trạng thái booking thành paid.");
         return res.redirect(
           `http://localhost:3000/customer/booking-result?success=true&bookingId=${bookingId}`
         );
@@ -200,5 +225,43 @@ exports.vnpayReturn = async (req, res) => {
     } else {
       return res.redirect("http://localhost:3000/");
     }
+  }
+};
+
+// Test function to manually update accommodation after booking
+exports.testUpdateAccommodation = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+
+    console.log("🧪 Testing accommodation update for bookingId:", bookingId);
+
+    // Find the booking
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    console.log("📋 Found booking:", booking);
+
+    // Update accommodation
+    const accommodationUpdate = await Accommodation.findByIdAndUpdate(
+      booking.propertyId,
+      {
+        customerId: booking.userId,
+        status: "Booked"
+      },
+      { new: true }
+    );
+
+    console.log("🏠 Updated accommodation:", accommodationUpdate);
+
+    res.status(200).json({
+      message: "Test update successful",
+      booking,
+      accommodation: accommodationUpdate
+    });
+  } catch (error) {
+    console.error("❌ Test error:", error);
+    res.status(500).json({ message: "Test failed", error: error.message });
   }
 };

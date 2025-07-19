@@ -14,8 +14,17 @@ exports.deleteAccommodationAdmin = async (req, res) => {
     if (acc.approvedStatus === 'deleted') {
       return res.status(400).json({ message: 'Post has already been deleted.' });
     }
+    
+    // Check if accommodation has a customer (is currently rented/booked)
+    if (acc.customerId) {
+      return res.status(400).json({ 
+        message: 'Cannot delete accommodation that is currently rented by a customer. Please wait until the rental period ends.' 
+      });
+    }
+    
     acc.approvedStatus = 'deleted';
     acc.deletedReason = reason;
+    acc.status = 'Unavailable'; // Set status to valid enum value when deleting
     await acc.save();
     // Log the action (BR-DOP-03)
     await AuditLog.create({

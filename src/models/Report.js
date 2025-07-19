@@ -11,6 +11,17 @@ const ReportSchema = new mongoose.Schema({
         ref: "User",
         require: false,
     },
+    // Thêm các trường liên quan đến accommodation và booking
+    accommodationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Accommodation",
+        require: false,
+    },
+    bookingId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Booking",
+        require: false,
+    },
     type: {
         type: String,
         require: true,

@@ -1,6 +1,9 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const socketIo = require("socket.io");
+const http = require("http");
+
 require("dotenv").config();
 
 const PORT = process.env.PORT;
@@ -72,6 +75,28 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-app.listen(PORT, () => {
+// Socket
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin: "http://localhost:3000", // cổng của frontend
+    methods: ["GET", "POST"],
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("🟢 A user connected:", socket.id);
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId);
+    console.log(`${socket.id} joined room ${roomId}`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔴 A user disconnected:", socket.id);
+  });
+});
+
+server.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
 });

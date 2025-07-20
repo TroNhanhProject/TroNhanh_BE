@@ -5,14 +5,22 @@ const Accommodation = require('../models/Accommodation')
 exports.createReport = async (req, res) => {
   try {
     const { type, content, accommodationId, bookingId, reportedUserId } = req.body;
+    const reporterId = req.user.id;
+
+
+    if (reportedUserId) {
+      const existingReport = await Report.findOne({ reportedUserId, reporterId });
+      if (existingReport) {
+        return res.status(400).json({ message: "You have already reported this user." });
+      }
+    }
 
     const reportData = {
-      reporterId: req.user.id, 
+      reporterId,
       type,
       content,
     };
 
-    // Gán các field optional nếu có  
     if (accommodationId) reportData.accommodationId = accommodationId;
     if (bookingId) reportData.bookingId = bookingId;
     if (reportedUserId) reportData.reportedUserId = reportedUserId;
@@ -20,13 +28,13 @@ exports.createReport = async (req, res) => {
     const report = new Report(reportData);
     await report.save();
 
-    console.log("✅ Report created with data:", reportData);
     res.status(201).json(report);
   } catch (error) {
     console.error("❌ Error creating report:", error);
     res.status(500).json({ message: "Failed to create report" });
   }
 };
+
 
 exports.getMyReports = async (req, res) => {
   try {

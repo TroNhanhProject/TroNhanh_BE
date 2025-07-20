@@ -36,11 +36,26 @@ const {
   getReportStats
 } = require('../controllers/AdminController/ReportController');
 
+const {
+  getUserDashboard,
+  getAccommodationDashboard,
+  getReportDashboard,
+  getMembershipDashboard,
+  getFinancialDashboard
+} = require('../controllers/AdminController/DashboardController');
+
 // Import admin authentication middleware
 const { adminAuth } = require('../middleware/adminAuth');
 
 // Apply admin authentication to all routes
 router.use(adminAuth);
+
+// UC-Admin-Dashboard: Dashboard Analytics (5 APIs)
+router.get('/dashboard/users', getUserDashboard);                  // GET /api/admin/dashboard/users
+router.get('/dashboard/accommodations', getAccommodationDashboard); // GET /api/admin/dashboard/accommodations
+router.get('/dashboard/reports', getReportDashboard);              // GET /api/admin/dashboard/reports
+router.get('/dashboard/memberships', getMembershipDashboard);      // GET /api/admin/dashboard/memberships
+router.get('/dashboard/financial', getFinancialDashboard);         // GET /api/admin/dashboard/financial
 
 // UC-Admin-01: View User List
 router.get('/users', getAllUsers);                    // GET /api/admin/users

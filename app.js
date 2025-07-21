@@ -1,23 +1,21 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-// riel-time messaging
-const http = require("http");
-const { Server } = require("socket.io");
-
 require("dotenv").config();
-
 const PORT = process.env.PORT;
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*", // Adjust in production
-    methods: ["GET", "POST"],
-  },
-});
 
-app.use(cors()); //Share tai nguyen giua cac cong khac nhau
+//Share tai nguyen giua cac cong khac nhau
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || [
+      "http://localhost:3000",
+      "http://localhost:5000",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
@@ -49,6 +47,19 @@ app.use("/api/accommodation", accommodationRoutes);
 // Riel-time messaging route
 const messagesRoutes = require("./src/routes/messagesRoutes");
 app.use("/api/messages", messagesRoutes);
+
+// ______________________________ TEMP ROUTE FOR TESTING SOCKET ______________________________
+// app.get("/test-socket", (req, res) => {
+//   const socketCount = io.sockets.sockets.size;
+//   const onlineCount = onlineUsers.size;
+
+//   res.json({
+//     message: "Socket.IO server status",
+//     connectedSockets: socketCount,
+//     onlineUsers: onlineCount,
+//     onlineUserIds: Array.from(onlineUsers.keys()),
+//   });
+// });
 
 // Booking routes
 const bookingRoutes = require("./src/routes/bookingRoutes");
@@ -87,54 +98,8 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-// socket.IO
-const onlineUsers = new Map();
-
-io.on("connection", (socket) => {
-  console.log("User connected", socket.id);
-
-  socket.on("add-user", (userId) => {
-    onlineUsers.set(userId, socket.id);
-    console.log(`User ${userId} added with socket ${socket.id}`);
-    console.log("Online users:", Array.from(onlineUsers.keys()));
-  });
-
-  socket.on("send-message", (data) => {
-    console.log(" >>>[INFO] Message sent:", data);
-
-    const receiverSocket = onlineUsers.get(data.receiverId);
-
-    if (receiverSocket) {
-      console.log(
-        ` >>>[INFO] Sending message to ${data.receiverId} via socket ${receiverSocket}`
-      );
-      // send the entire data object to the receiver
-      io.to(receiverSocket).emit("message-receive", data);
-    } else {
-      console.log(` >>>[INFO] Receiver ${data.receiverId} is not online`);
-    }
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected", socket.id);
-
-    // remove user from online users map
-    for (let [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) {
-        onlineUsers.delete(uid);
-        console.log(` >>>[INFO] User ${userId} removed from online users`);
-        break;
-      }
-    }
-    console.log(
-      " >>>[DEBUG] Online users after disconnect:",
-      Array.from(onlineUsers.keys())
-    );
-  });
-});
-
 // app.listen(PORT, () => {
 //   console.log(`Server is running at http://localhost:${PORT}`);
 // });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = app;

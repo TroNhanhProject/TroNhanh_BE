@@ -1,58 +1,46 @@
-const express = require('express');
-const cors = require('cors');
-const app = express();
+const http = require("http");
+const { Server } = require("socket.io");
+const app = require("./app");
+const socketHandlers = require("./src/socket/socket");
+const onlineUsers = new Map();
+const userSockets = new Map(); // track multiple sockets per user
 
-app.use(cors());
-app.use(express.json());
-
-const motels = [
-  {
-    name: 'Nhà trọ Hoa Mai',
-    address: '123 Lê Duẩn',
-    district: 'Hải Châu',
-    lat: 16.0544,
-    lng: 108.2022
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.FRONTEND_URL || [
+      "http://localhost:3000",
+      "http://localhost:5000",
+    ],
+    methods: ["GET", "POST"],
+    credentials: true,
   },
-  {
-    name: 'Nhà trọ An Bình',
-    address: '456 Nguyễn Văn Linh',
-    district: 'Hải Châu',
-    lat: 16.0589,
-    lng: 108.2192
-  },
-  {
-    name: 'Nhà trọ Bình Yên',
-    address: '789 Hải Phòng',
-    district: 'Thanh Khê',
-    lat: 16.0601,
-    lng: 108.2100
-  }
-];
-
-// Tính khoảng cách theo công thức đơn giản (lat/lng, giả định mặt phẳng)
-function getDistance(a, b) {
-  const dx = a.lat - b.lat;
-  const dy = a.lng - b.lng;
-  return Math.sqrt(dx * dx + dy * dy) * 111; // nhân 111 để đổi ra km gần đúng
-}
-
-app.post('/api/search', (req, res) => {
-  const { district, street, facilities } = req.body;
-
-  console.log('Request:', req.body);
-
-  // Mô phỏng toạ độ theo từ khoá (bạn có thể dùng AI sau này)
-  const mockFacilityLocation = { lat: 16.0545, lng: 108.2050 };
-
-  // Lọc theo district và gần tiện ích
-  const nearby = motels.filter(motel =>
-    motel.district.toLowerCase().includes(district.toLowerCase()) &&
-    getDistance(motel, mockFacilityLocation) < 1
-  );
-
-  res.json(nearby);
+  transports: ["websocket", "polling"],
+  allowEIO3: true,
 });
 
-app.listen(5000, () => {
-  console.log('✅ Backend running at http://localhost:5000');
+// attach shared instances for access in controllers
+app.set("io", io);
+app.set("onlineUsers", onlineUsers);
+app.set("userSockets", userSockets);
+
+io.on("connection", (socket) => {
+  socketHandlers(io, socket, onlineUsers, userSockets);
+});
+
+// heartbeat monitoring
+setInterval(() => {
+  const onlineCount = onlineUsers.size;
+  const totalSockets = io.sockets.sockets.size;
+  console.log(
+    `[SOCKET] Heartbeat - Online users: ${onlineCount}, Total sockets: ${totalSockets}`
+  );
+
+  // emit heartbeat to all connected clients
+  io.emit("heartbeat", { timestamp: Date.now() });
+}, 15000);
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(` >>>[INFO]🚀 Server running on http://localhost:${PORT}`);
 });

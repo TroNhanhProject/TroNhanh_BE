@@ -27,8 +27,8 @@ const AccommodationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'booked', 'unavailable'],
-    default: 'available'
+    enum: ['Available', 'Unavailable', 'Booked'],
+    default: 'Available'
   },
   isApproved: {
     type: Boolean,
@@ -36,8 +36,8 @@ const AccommodationSchema = new mongoose.Schema({
   },
   approvedStatus: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
-    default: 'pending'
+    enum: ['pending', 'approved', 'rejected', 'deleted'],
+    default: 'pending',
   },
   approvedAt: {
     type: Date
@@ -61,10 +61,10 @@ const AccommodationSchema = new mongoose.Schema({
     latitude: Number,
     longitude: Number
   },
-  image:{
-   type:"String",
-    default:''
-  }
+  photos: {
+    type: [String],
+    default: [],
+  },
 });
 
 AccommodationSchema.pre('save', function (next) {

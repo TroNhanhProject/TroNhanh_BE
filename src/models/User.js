@@ -25,10 +25,10 @@ const userSchema = new mongoose.Schema(
       required: true,
       minlength: 6
     },
-    phone:{
-      type:String,
-      required:true,
-      trim:true,
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
     },
     gender: {
       type: String,
@@ -37,7 +37,7 @@ const userSchema = new mongoose.Schema(
     },
     avatar: {
       type: String,
-      default: '' 
+      default: ''
     },
     status: {
       type: String,
@@ -45,22 +45,39 @@ const userSchema = new mongoose.Schema(
       default: 'inactive'
     },
     verified: {
-  type: Boolean,
-  default: false,
-},
-     resetPasswordToken: {
+      type: Boolean,
+      default: false,
+    },
+    resetPasswordToken: {
       type: String,
       default: null,
     },
     resetPasswordExpires: {
       type: Date,
       default: null,
+    },
+    isMembership: {
+      type: String,
+      enum: ['active', 'inactive', 'none'],
+      default: 'none'
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
     }
   },
   {
-    timestamps: true 
+    timestamps: true
   }
 );
+
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
 
 // Mã hóa mật khẩu trước khi lưu
 userSchema.pre('save', async function (next) {

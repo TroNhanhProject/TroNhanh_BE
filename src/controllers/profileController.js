@@ -5,11 +5,11 @@ exports.getProfileInfo = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
-  const userObj = user.toObject();
-if (userObj.avatar && !userObj.avatar.startsWith('http')) {
-  userObj.avatar = `${req.protocol}://${req.get('host')}${userObj.avatar}`;
-}
-res.json(userObj);
+    const userObj = user.toObject();
+    if (userObj.avatar && !userObj.avatar.startsWith('http')) {
+      userObj.avatar = `${req.protocol}://${req.get('host')}${userObj.avatar}`;
+    }
+    res.json(userObj);
 
   } catch (err) {
     next(err);
@@ -26,9 +26,9 @@ exports.updateUserInfo = async (req, res) => {
 
 
     if (req.file) {
-  const avatarPath = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
-  updateData.avatar = avatarPath;
-}
+      const avatarPath = `${req.protocol}://${req.get('host')}/uploads/avatars/${req.file.filename}`;
+      updateData.avatar = avatarPath;
+    }
 
 
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, { new: true });
@@ -50,5 +50,3 @@ exports.updateUserInfo = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server', error: err.message });
   }
 };
-
-

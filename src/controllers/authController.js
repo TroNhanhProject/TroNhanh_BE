@@ -56,7 +56,19 @@ exports.login = async (req, res) => {
     // Tìm user theo email
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: `Email doesn't exist` });
-    if (!user.verified) {
+ 
+  if (user.isDeleted) {
+      return res.status(403).json({ message: "This account has been deleted." });
+    }
+    // Kiểm tra trạng thái tài khoản
+    if (user.status === "inactive") {
+      return res.status(403).json({ message: "Your account is not yet activated by admin." });
+    }
+
+    if (user.status === "banned") {
+      return res.status(403).json({ message: "Your account has been banned. Please contact support." });
+    }
+       if (!user.verified) {
       return res.status(400).json({ message: "Email is not verified" });
     }
     // So sánh mật khẩu
@@ -101,6 +113,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.AUTH_EMAIL,
     pass: process.env.AUTH_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 exports.sendOTP = async (req, res) => {
@@ -263,7 +278,7 @@ exports.forgotPassword = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
 
     user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; 
+    user.resetPasswordExpires = Date.now() + 60 * 60 * 1000;
     await user.save();
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
@@ -274,6 +289,9 @@ exports.forgotPassword = async (req, res) => {
         user: process.env.AUTH_EMAIL,
         pass: process.env.AUTH_PASS,
       },
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
     await transporter.sendMail({

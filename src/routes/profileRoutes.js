@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleWare');
+const authMiddleware = require('../middleware/authMiddleware');
 const profileController = require('../controllers/profileController');
 const favoriteController = require('../controllers/favoriteController');
 const messageController = require('../controllers/messageController');
+const reportController = require('../controllers/reportController')
 router.use(authMiddleware);
 
 // ===== Personal Info =====
@@ -17,6 +18,10 @@ router.get('/favorites',favoriteController.getFavorite);
 router.get('/messages', messageController.getUserMessages);
 router.post('/messages', messageController.sendMessage);
 router.delete('/messages/:id', messageController.deleteMessage);
+
+// ===== MyReports =====
+
+router.get("/my-reports", reportController.getMyReports);
 
 const multer = require('multer');
 const path = require('path');

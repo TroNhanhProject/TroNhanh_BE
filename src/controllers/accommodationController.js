@@ -92,11 +92,12 @@ exports.createAccommodation = async (req, res) => {
 
 exports.updateAccommodation = async (req, res) => {
   try {
-    const { title, description, price, status } = req.body;
-    const location = JSON.parse(req.body.location || "{}");
+    const { title, description, price, status, approvedStatus } = req.body;
+    const location = JSON.parse(req.body.location  || "{}");
     const photoPaths =
       req.files?.map((file) => `/uploads/accommodation/${file.filename}`) || [];
 
+    // Luôn cập nhật approvedStatus về 'pending' khi update
     const updateData = {
       title,
       description,
@@ -104,6 +105,7 @@ exports.updateAccommodation = async (req, res) => {
       status,
       location,
       updatedAt: Date.now(),
+      approvedStatus: "pending"
     };
 
     if (photoPaths.length > 0) {
@@ -134,14 +136,15 @@ exports.getAllAccommodations = async (req, res) => {
   try {
     const { ownerId } = req.query;
 
-    // Base filter - only approved accommodations
-    const filter = { approvedStatus: "approved" };
+    // Base filter
+    const filter = {};
 
     if (ownerId) {
       // Owner request - show all accommodations including Unavailable
       filter.ownerId = ownerId;
     } else {
-      // Customer request - exclude Unavailable accommodations
+      // Customer request - only approved accommodations and exclude Unavailable
+      filter.approvedStatus = "approved";
       filter.status = { $ne: "Unavailable" };
     }
 
@@ -356,8 +359,9 @@ exports.getOwnerAccommodationsWithRatings = async (req, res) => {
   try {
     const ownerId = req.user.id; // Lấy từ auth middleware
 
-    // Lấy tất cả accommodations của owner
-    const accommodations = await Accommodation.find({ ownerId })
+    // Lấy tất cả accommodations của owner, chỉ lấy status hợp lệ và đã được approved
+    const validStatuses = ["Available", "Unavailable", "Booked"];
+    const accommodations = await Accommodation.find({ ownerId, status: { $in: validStatuses }, approvedStatus: "approved" })
       .select('_id title status createdAt');
 
     // Tính rating cho từng accommodation
@@ -393,7 +397,6 @@ exports.getOwnerAccommodationsWithRatings = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 // API cho owner xem chi tiết ratings của 1 accommodation
 exports.getAccommodationRatingsForOwner = async (req, res) => {
   try {

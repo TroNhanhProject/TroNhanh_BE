@@ -67,6 +67,9 @@ app.use("/api/membership-packages", membershipRoutes);
 const paymentRoutes = require("./src/routes/paymentRoutes");
 app.use("/api/payment", paymentRoutes);
 
+// Ai routes
+const aiRoutes = require("./src/routes/aiRoutes")
+app.use("/api/ai", aiRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send("Something went wrong!");

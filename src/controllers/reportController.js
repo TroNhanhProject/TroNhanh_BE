@@ -8,12 +8,6 @@ exports.createReport = async (req, res) => {
     const reporterId = req.user.id;
 
 
-    if (reportedUserId) {
-      const existingReport = await Report.findOne({ reportedUserId, reporterId });
-      if (existingReport) {
-        return res.status(400).json({ message: "You have already reported this user." });
-      }
-    }
 
     const reportData = {
       reporterId,
@@ -76,24 +70,30 @@ exports.checkBookingHistory = async (req, res) => {
       return res.status(400).json({ message: "Missing reportedUserId in query params" });
     }
 
-    // Tìm tất cả accommodation thuộc owner bị báo cáo
+    // Tìm tất cả accommodation của owner bị report
     const properties = await Accommodation.find({ ownerId: reportedUserId }).select("_id");
-
     const propertyIds = properties.map(p => p._id);
 
     if (propertyIds.length === 0) {
-      return res.status(200).json({ hasHistory: false });
+      return res.status(200).json({ hasHistory: false, bookings: [] });
     }
 
-    const booking = await Booking.findOne({
+    const bookings = await Booking.find({
       userId: reporterId,
       propertyId: { $in: propertyIds },
       status: { $in: ["paid", "approved"] },
+    })
+    .select("_id checkInDate checkOutDate propertyId")
+    .populate({
+      path: "propertyId",
+      select: "_id title location" // thêm các trường cần dùng từ Accommodation
     });
 
+    return res.status(200).json({
+      hasHistory: bookings.length > 0,
+      bookings
+    });
 
-
-    return res.status(200).json({ hasHistory: !!booking });
   } catch (error) {
     console.error("Error checking booking history:", error);
     return res.status(500).json({ message: "Internal server error" });

@@ -1,7 +1,7 @@
 const Report = require('../models/Report')
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const Accommodation = require('../models/Accommodation')
+const Accommodation = require('../models/BoardingHouse')
 exports.createReport = async (req, res) => {
   try {
     const { type, content, accommodationId, bookingId, reportedUserId } = req.body;

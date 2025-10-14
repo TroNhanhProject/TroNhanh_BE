@@ -13,7 +13,7 @@ const {
   getAuditLogs
 } = require('../controllers/AdminController/UserController');
 
-const { getAllAccommodationsAdmin, getAccommodationDetailAdmin, approveAccommodationAdmin, deleteAccommodationAdmin } = require('../controllers/AdminController/AccommodationController');
+const { getAllBoardingHousesAdmin, getBoardingHouseDetailAdmin, approveBoardingHouseAdmin, deleteBoardingHouseAdmin } = require('../controllers/AdminController/BoardingHouseController');
 
 const {
   createMembershipPackage,
@@ -75,16 +75,16 @@ router.get('/users/:id', getUserById);               // GET /api/admin/users/:id
 router.get('/audit-logs', getAuditLogs);            // GET /api/admin/audit-logs
 
 // UC-Admin-05: Admin view all accommodation posts
-router.get('/accommodations', getAllAccommodationsAdmin); // GET /api/admin/accommodations
+router.get('/boarding-houses', getAllBoardingHousesAdmin); // GET /api/admin/boardinghouse
 
 // UC-Admin-06: Admin view accommodation post details
-router.get('/accommodations/:id', getAccommodationDetailAdmin); // GET /api/admin/accommodations/:id
+router.get('/boarding-houses/:id', getBoardingHouseDetailAdmin); // GET /api/admin/boardinghouse/:id
 
 // UC-Admin-Approve: Admin approve/reject accommodation post
-router.put('/accommodations/:id/approve', approveAccommodationAdmin); // PUT /api/admin/accommodations/:id/approve
+router.put('/boarding-houses/:id/approve', approveBoardingHouseAdmin); // PUT /api/admin/boardinghouse/:id/approve
 
 // UC-Admin-07: Admin soft delete accommodation post
-router.put('/accommodations/:id/delete', deleteAccommodationAdmin); // PUT /api/admin/accommodations/:id/delete
+router.put('/boarding-houses/:id/delete', deleteBoardingHouseAdmin); // PUT /api/admin/boardinghouse/:id/delete
 
 // UC-Admin-14: Membership Package Management
 router.post('/membership-packages', createMembershipPackage);        // POST /api/admin/membership-packages

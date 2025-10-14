@@ -34,9 +34,13 @@ app.use("/api/auth", authRoutes);
 const profileRoutes = require("./src/routes/profileRoutes");
 app.use("/api/customer", profileRoutes);
 
-//  Accommodation routes
-const accommodationRoutes = require("./src/routes/accommodationRoutes");
-app.use("/api/accommodation", accommodationRoutes);
+//  BoardingHouse routes
+const boardingHouseRoutes = require("./src/routes/boardingHouseRoutes");
+app.use("/api/boarding-houses", boardingHouseRoutes);
+
+// Room routes
+const roomRoutes = require("./src/routes/roomRoutes");
+app.use("/api/rooms", roomRoutes);
 
 // Booking routes
 const bookingRoutes = require("./src/routes/bookingRoutes");
@@ -75,28 +79,28 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-// Socket
-const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: "http://localhost:3000", // cổng của frontend
-    methods: ["GET", "POST"],
-  },
-});
+// // Socket
+// const server = http.createServer(app);
+// const io = socketIo(server, {
+//   cors: {
+//     origin: "http://localhost:3000", // cổng của frontend
+//     methods: ["GET", "POST"],
+//   },
+// });
 
-io.on("connection", (socket) => {
-  console.log("🟢 A user connected:", socket.id);
+// io.on("connection", (socket) => {
+//   console.log("🟢 A user connected:", socket.id);
 
-  socket.on("joinRoom", (roomId) => {
-    socket.join(roomId);
-    console.log(`${socket.id} joined room ${roomId}`);
-  });
+//   socket.on("joinRoom", (roomId) => {
+//     socket.join(roomId);
+//     console.log(`${socket.id} joined room ${roomId}`);
+//   });
 
-  socket.on("disconnect", () => {
-    console.log("🔴 A user disconnected:", socket.id);
-  });
-});
+//   socket.on("disconnect", () => {
+//     console.log("🔴 A user disconnected:", socket.id);
+//   });
+// });
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
 });

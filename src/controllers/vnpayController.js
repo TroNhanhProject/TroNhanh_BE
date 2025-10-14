@@ -7,7 +7,7 @@ const url = require("url");
 const Payment = require("../models/Payment");
 const MembershipPackage = require("../models/MembershipPackage");
 const Booking = require("../models/Booking");
-const Accommodation = require("../models/Accommodation");
+const Accommodation = require("../models/BoardingHouse");
 
 function sortAndBuildSignData(obj) {
   let keys = Object.keys(obj).sort();

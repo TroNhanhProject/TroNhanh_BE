@@ -1,6 +1,6 @@
 const Report = require('../../models/Report');
 const User = require('../../models/User');
-const Accommodation = require('../../models/Accommodation');
+const Accommodation = require('../../models/BoardingHouse');
 const AuditLog = require('../../models/AuditLog');
 
 // UC-Admin-12: Admin view all reports with filters and pagination

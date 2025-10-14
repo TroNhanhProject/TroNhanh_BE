@@ -1,11 +1,11 @@
-const Accommodation = require('../models/Accommodation')
+const Accommodation = require('../models/BoardingHouse')
 
-exports.SearchAccomodationNoUsingAI = async (req, res) => {
+exports.SearchBoardingHouseNoUsingAI = async (req, res) => {
     try {
         const { district, street, addressDetail } = req.query;
 
         const query = {
-            approvedStatus: "approved", // Chỉ lấy accommodation đã được approve
+            approvedStatus: "approved", // Chỉ lấy boarding house đã được approve
             status: { $ne: "Unavailable" } // Loại bỏ accommodation có status "Unavailable"
         };
 

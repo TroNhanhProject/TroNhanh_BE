@@ -34,6 +34,15 @@ app.use("/api/auth", authRoutes);
 const profileRoutes = require("./src/routes/profileRoutes");
 app.use("/api/customer", profileRoutes);
 
+
+app.use("/api/owner", (req, res, next) => {
+    next();
+});
+
+//  Owner routes
+const ownerRoutes = require("./src/routes/ownerRoutes");
+app.use("/api/owner", ownerRoutes);
+
 //  BoardingHouse routes
 const boardingHouseRoutes = require("./src/routes/boardingHouseRoutes");
 app.use("/api/boarding-houses", boardingHouseRoutes);
@@ -41,6 +50,10 @@ app.use("/api/boarding-houses", boardingHouseRoutes);
 // Room routes
 const roomRoutes = require("./src/routes/roomRoutes");
 app.use("/api/rooms", roomRoutes);
+
+// Contract routes
+const contractRoutes = require("./src/routes/contractRoutes");
+app.use("/api/contracts", contractRoutes);
 
 // Booking routes
 const bookingRoutes = require("./src/routes/bookingRoutes");

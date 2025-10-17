@@ -183,7 +183,7 @@ exports.getBoardingHouseById = async (req, res) => {
     try {
         const filter = { _id: req.params.id };
 
-        const house = await BoardingHouse.findOne(filter).populate("ownerId", "name email");
+        const house = await BoardingHouse.findOne(filter).populate("ownerId", "name email phone");
         if (!house) return res.status(404).json({ message: "Không tìm thấy nhà trọ" });
 
         const rooms = await Room.find({ boardingHouseId: house._id });

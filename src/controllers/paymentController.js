@@ -25,16 +25,21 @@ exports.getCurrentMembershipOfUser = async (req, res) => {
         }
 
         const duration = latestPayment.membershipPackageId?.duration || 0;
-        const createdAt = latestPayment.createAt;
+        const createdAt = latestPayment.createdAt;
         const expiredAt = new Date(createdAt.getTime() + duration * 24 * 60 * 60 * 1000);
+        console.log(duration);
+        console.log(createdAt);
+        console.log(expiredAt);
 
         // Kiểm tra và cập nhật trạng thái membership trong User collection
         const now = new Date();
         const isExpired = now > expiredAt;
+        console.log(isExpired);
 
         const currentUser = await User.findById(userId);
         if (currentUser) {
             const newMembershipStatus = isExpired ? 'inactive' : 'active';
+            console.log(newMembershipStatus)
 
             if (currentUser.isMembership !== newMembershipStatus) {
                 await User.findByIdAndUpdate(userId, {
@@ -70,7 +75,7 @@ exports.updateAllUsersMembershipStatus = async (req, res) => {
 
             if (latestPayment) {
                 const duration = latestPayment.membershipPackageId?.duration || 0;
-                const createdAt = latestPayment.createAt;
+                const createdAt = latestPayment.createdAt;
                 const expiredAt = new Date(createdAt.getTime() + duration * 24 * 60 * 60 * 1000);
                 const now = new Date();
 

@@ -24,7 +24,7 @@ exports.getPostsByAccommodation = async (req, res) => {
     const { accommodationId } = req.params;
 
     const posts = await RoommatePost.find({ accommodationId })
-      .populate('userId', 'name avatar')
+      .populate('userId', 'name avatar phone gender')
       .sort({ createdAt: -1 });
 
     res.status(200).json({ posts });

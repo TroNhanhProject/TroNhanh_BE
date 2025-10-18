@@ -177,7 +177,11 @@ exports.getAccommodationById = async (req, res) => {
 
     if (!acc)
       return res.status(404).json({ message: "Accommodation not found" });
-
+if (!acc.ownerId) {
+    console.error(`Data error: Accommodation ${acc._id} has no valid owner.`);
+    // Trả về 404 vì dữ liệu nhà trọ này không hợp lệ (thiếu chủ)
+    return res.status(404).json({ message: "Accommodation data is corrupted (owner missing)." });
+  }
     // Fetch reviews separately từ Review collection
     const reviews = await Review.find({ accommodationId: req.params.id })
       .populate('customerId', 'name avatar')

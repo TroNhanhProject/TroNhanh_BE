@@ -5,11 +5,39 @@ require("dotenv").config();
 const crypto = require("crypto");
 const Payment = require("./src/models/Payment"); 
 const Booking = require("./src/models/Booking");
+const http = require('http'); 
+const { Server } = require("socket.io");
 require("./src/service/cancelExpiredBookings");
 
 const PORT = process.env.PORT;
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { 
+    cors: {
+        origin: "*", 
+        methods: ["GET", "POST"]
+    }
+});
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+io.on('connection', (socket) => {
+  console.log('A user connected');
 
+  // Cho user tham gia một "phòng" riêng, đặt tên bằng userId của họ
+  // Client sẽ gửi sự kiện này sau khi kết nối
+  socket.on('joinUserRoom', (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`User ${userId} joined room ${userId}`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
 app.use(cors()); //Share tai nguyen giua cac cong khac nhau
 
 const { handlePayOSWebhook } = require("./src/controllers/payOSController");
@@ -167,6 +195,8 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something went wrong!");
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+const visitRequestRoutes = require('./src/routes/visitRequestRoutes');
+app.use('/api/visit-requests', visitRequestRoutes);
+server.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
 });

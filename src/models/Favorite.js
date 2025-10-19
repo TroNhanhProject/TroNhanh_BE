@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const FavoriteSchema = new mongoose.Schema({
-  accommodationId: {
+  boardingHouseId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Accommodation', 
+    ref: 'BoardingHouse', 
     required: true
   },
   customerId: {

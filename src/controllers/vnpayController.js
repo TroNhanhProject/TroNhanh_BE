@@ -55,15 +55,6 @@ exports.createPaymentUrl = async (req, res) => {
     vnp_CreateDate: createDate,
   };
 
-  // Debug: Log all data being sent to VNPay
-  console.log(" >>> [DEBUG] === VNPay Payment Request Debug ===");
-  console.log(" >>> [DEBUG] Request body:", req.body);
-  console.log(" >>> [DEBUG] paramsForSign:", paramsForSign);
-  console.log(" >>> [DEBUG] orderInfoRaw:", orderInfoRaw);
-  console.log(" >>> [DEBUG] orderInfo (base64):", orderInfo);
-  console.log(" >>> [DEBUG] Payment type:", type);
-  console.log("===================================");
-
   const signData = sortAndBuildSignData(paramsForSign);
   const hmac = crypto.createHmac("sha512", vnp_HashSecret);
   const secureHash = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
@@ -76,15 +67,6 @@ exports.createPaymentUrl = async (req, res) => {
   const paymentUrl = `${vnp_Url}?${qs.stringify(finalParams, {
     encode: true,
   })}`;
-
-  // Debug
-  console.log("✅ [Sorted keys]:", Object.keys(paramsForSign).sort());
-  console.log("✅ [signData]:", signData);
-  console.log("✅ [vnp_SecureHash]:", secureHash);
-  console.log("✅ [Payment URL]:", paymentUrl);
-  console.log("📦 packageId:", packageId);
-  console.log("👤 userId:", userId);
-  console.log("📦 bookingId:", bookingId);
 
   res.json({ url: paymentUrl });
 };
@@ -121,15 +103,6 @@ exports.vnpayReturn = async (req, res) => {
       return acc;
     }, {});
     type = parts.type;
-    console.log(
-      " >>>[DEBUG]",
-      "VNPay Return type:",
-      type,
-      "bookingId:",
-      parts.bookingId,
-      "packageId:",
-      parts.packageId
-    );
     packageId = parts.packageId;
     userId = parts.userId;
     bookingId = parts.bookingId;
@@ -137,16 +110,7 @@ exports.vnpayReturn = async (req, res) => {
     console.error("❌ Lỗi giải mã orderInfo:", err);
   }
 
-  console.log(" >>> [DEBUG] ===== Membership ID package =====");
-  console.log("📦 packageId:", packageId);
-  console.log("👤 userId:", userId);
-  console.log(" >>> [DEBUG] ===== Booking ID =====");
-  console.log("bookingId:", bookingId);
-  console.log("userId:", userId);
-  console.log("type:", type);
-
   if (secureHash === signed && query.vnp_ResponseCode === "00") {
-    console.log("✅ Callback chữ ký HỢP LỆ");
 
     try {
       if (type === "membership") {
@@ -155,6 +119,7 @@ exports.vnpayReturn = async (req, res) => {
         if (!membershipPackage) {
           console.error("❌ Không tìm thấy gói membership.");
         } else {
+          // Tạo payment record
           await Payment.create({
             ownerId: userId,
             membershipPackageId: packageId,
@@ -166,14 +131,16 @@ exports.vnpayReturn = async (req, res) => {
             createAt: new Date(),
           });
 
-          console.log("✅ Đã lưu thông tin thanh toán vào MongoDB.");
+          // Cập nhật isMembership trong User collection
+          await User.findByIdAndUpdate(userId, {
+            isMembership: 'active'
+          });
         }
         return res.redirect(
           `http://localhost:3000/owner/membership-result?success=true&packageId=${packageId}`
         );
       } else if (type === "booking") {
         // update booking status to paid
-        console.log("Updating bookingId:", bookingId);
         const updatedBooking = await Booking.findByIdAndUpdate(bookingId, {
           status: "paid",
           paymentInfo: {
@@ -186,10 +153,6 @@ exports.vnpayReturn = async (req, res) => {
         // Update accommodation status and customerId after successful booking payment
         if (updatedBooking) {
           try {
-            console.log("📋 Booking data:", updatedBooking);
-            console.log("🏠 Updating accommodation ID:", updatedBooking.propertyId);
-            console.log("👤 Setting customerId to:", updatedBooking.userId);
-
             const accommodationUpdate = await Accommodation.findByIdAndUpdate(
               updatedBooking.propertyId,
               {
@@ -198,9 +161,6 @@ exports.vnpayReturn = async (req, res) => {
               },
               { new: true }
             );
-
-            console.log("🏠 Updated accommodation:", accommodationUpdate);
-            console.log("✅ Đã cập nhật accommodation với customerId và status = Booked.");
           } catch (accommodationError) {
             console.error("❌ Lỗi khi cập nhật accommodation:", accommodationError);
           }

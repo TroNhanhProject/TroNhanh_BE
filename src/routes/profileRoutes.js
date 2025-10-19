@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleWare');
+const {updateUserInfoValidator} = require('../middleware/authValidator');
 const profileController = require('../controllers/profileController');
 const favoriteController = require('../controllers/favoriteController');
 const messageController = require('../controllers/messageController');
@@ -11,7 +12,7 @@ router.use(authMiddleware);
 router.get('/personal-info', profileController.getProfileInfo);
 
 // ===== Favourites =====
-router.get('/favorites', favoriteController.getFavorite);
+router.get('/favorites', favoriteController.getUserFavorites);
 
 
 // ===== Messages =====
@@ -33,6 +34,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.put('/personal-info', upload.single('avatar'), profileController.updateUserInfo);
+router.put('/personal-info', upload.single('avatar'),updateUserInfoValidator, profileController.updateUserInfo);
 
 module.exports = router;

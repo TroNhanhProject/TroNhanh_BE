@@ -1,87 +1,97 @@
-// file TroNhanh_BE/src/controllers/paymentController.js
+// Thêm Membership vào imports
 const Payment = require('../models/Payment');
 const MembershipPackage = require('../models/MembershipPackage');
 const User = require('../models/User');
+const Membership = require('../models/Membership'); // <-- THÊM DÒNG NÀY
 
 exports.getCurrentMembershipOfUser = async (req, res) => {
     try {
         const userId = req.params.userId;
+        const now = new Date();
 
-        const latestPayment = await Payment.findOne({
+        // 1. Tìm gói membership 'Active' của user
+        const activeMembership = await Membership.findOne({
             ownerId: userId,
-            status: 'Paid'
-        }).sort({ createAt: -1 }).populate('membershipPackageId');
+            status: 'Active'
+        }).populate('packageId'); // Lấy thông tin gói
 
-        if (!latestPayment) {
-            // User chưa có membership nào, cập nhật trạng thái thành 'none'
-            const currentUser = await User.findById(userId);
-            if (currentUser && currentUser.isMembership !== 'none') {
-                await User.findByIdAndUpdate(userId, {
-                    isMembership: 'none'
-                });
-            }
+        let newStatus;
+        let isExpired = true;
 
-            return res.status(200).json({ package: null });
+        if (!activeMembership) {
+            // Không có gói 'Active'. Kiểm tra xem họ đã từng có gói nào chưa.
+            const anyMembershipEver = await Membership.findOne({ ownerId: userId });
+            newStatus = anyMembershipEver ? 'inactive' : 'none';
+
+            // Cập nhật trạng thái 'cached' trên User
+            await User.findByIdAndUpdate(userId, { isMembership: newStatus });
+            return res.status(200).json({ package: null, isExpired: true, status: newStatus });
         }
 
-        const duration = latestPayment.membershipPackageId?.duration || 0;
-        const createdAt = latestPayment.createdAt;
-        const expiredAt = new Date(createdAt.getTime() + duration * 24 * 60 * 60 * 1000);
-        console.log(duration);
-        console.log(createdAt);
-        console.log(expiredAt);
+        // 2. Nếu có gói 'Active', kiểm tra ngày hết hạn
+        if (now > activeMembership.endDate) {
+            // Đã hết hạn
+            newStatus = 'inactive';
+            isExpired = true;
+            // Cập nhật trạng thái của chính bản ghi Membership
+            await Membership.findByIdAndUpdate(activeMembership._id, { status: 'Inactive' });
+        } else {
+            // Vẫn còn hạn
+            newStatus = 'active';
+            isExpired = false;
+        }
 
-        // Kiểm tra và cập nhật trạng thái membership trong User collection
-        const now = new Date();
-        const isExpired = now > expiredAt;
-        console.log(isExpired);
-
+        // 3. Cập nhật trạng thái 'cached' trên User nếu nó thay đổi
         const currentUser = await User.findById(userId);
-        if (currentUser) {
-            const newMembershipStatus = isExpired ? 'inactive' : 'active';
-            console.log(newMembershipStatus)
-
-            if (currentUser.isMembership !== newMembershipStatus) {
-                await User.findByIdAndUpdate(userId, {
-                    isMembership: newMembershipStatus
-                }, { new: true });
-            }
+        if (currentUser && currentUser.isMembership !== newStatus) {
+            await User.findByIdAndUpdate(userId, { isMembership: newStatus });
         }
 
         return res.status(200).json({
-            package: latestPayment.membershipPackageId,
-            expiredAt,
-            isExpired
+            package: activeMembership.packageId,
+            expiredAt: activeMembership.endDate, // Lấy ngày hết hạn ĐÚNG từ DB
+            isExpired,
+            status: newStatus
         });
+
     } catch (err) {
         console.error('❌ Lỗi khi lấy membership hiện tại:', err);
         return res.status(500).json({ message: 'Server error' });
     }
 };
 
-// Function để cập nhật trạng thái membership cho tất cả users
+// Cập nhật lại cron job để dùng logic tương tự
 exports.updateAllUsersMembershipStatus = async (req, res) => {
     try {
         const users = await User.find({ role: 'owner', isDeleted: false });
         let updatedCount = 0;
+        const now = new Date();
 
         for (const user of users) {
-            const latestPayment = await Payment.findOne({
+            // 1. Tìm gói 'Active'
+            const activeMembership = await Membership.findOne({
                 ownerId: user._id,
-                status: 'Paid'
-            }).sort({ createAt: -1 }).populate('membershipPackageId');
+                status: 'Active'
+            });
 
-            let newStatus = 'none';
+            let newStatus;
 
-            if (latestPayment) {
-                const duration = latestPayment.membershipPackageId?.duration || 0;
-                const createdAt = latestPayment.createdAt;
-                const expiredAt = new Date(createdAt.getTime() + duration * 24 * 60 * 60 * 1000);
-                const now = new Date();
-
-                newStatus = now > expiredAt ? 'inactive' : 'active';
+            if (activeMembership) {
+                // 2. Nếu có, kiểm tra ngày
+                if (now > activeMembership.endDate) {
+                    newStatus = 'inactive';
+                    // Cập nhật bản ghi Membership
+                    await Membership.findByIdAndUpdate(activeMembership._id, { status: 'Inactive' });
+                } else {
+                    newStatus = 'active';
+                }
+            } else {
+                // 3. Nếu không, kiểm tra xem đã từng có chưa
+                const anyMembershipEver = await Membership.findOne({ ownerId: user._id });
+                newStatus = anyMembershipEver ? 'inactive' : 'none';
             }
 
+            // 4. Cập nhật User nếu trạng thái thay đổi
             if (user.isMembership !== newStatus) {
                 await User.findByIdAndUpdate(user._id, {
                     isMembership: newStatus
@@ -91,7 +101,7 @@ exports.updateAllUsersMembershipStatus = async (req, res) => {
         }
 
         return res.status(200).json({
-            message: `Đã cập nhật trạng thái membership cho ${updatedCount} users`,
+            message: `Đã kiểm tra và cập nhật trạng thái cho ${updatedCount} users.`,
             totalUsers: users.length,
             updatedCount
         });
@@ -99,4 +109,4 @@ exports.updateAllUsersMembershipStatus = async (req, res) => {
         console.error('❌ Lỗi khi cập nhật trạng thái membership:', err);
         return res.status(500).json({ message: 'Server error' });
     }
-};
+}; 

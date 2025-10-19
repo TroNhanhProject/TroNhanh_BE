@@ -1,19 +1,19 @@
 const Favorite = require('../models/Favorite');
-const Accommodation = require('../models/BoardingHouse')
+const BoardingHouse = require('../models/BoardingHouse')
 const mongoose = require('mongoose');
 
 exports.addFavorite = async (req, res) => {
   try {
-    const { accommodationId } = req.body;
+    const { boardingHouseId } = req.body;
     const customerId = req.user.id;
 
-    const accommodation = await Accommodation.findById(accommodationId);
+    const accommodation = await BoardingHouse.findById(boardingHouseId);
     if (!accommodation) {
       return res.status(404).json({ message: "Accommodation not found" });
     }
 
     const favorite = await Favorite.create({
-      accommodationId, customerId
+      boardingHouseId, customerId
     });
     res.status(200).json({ message: "Accommodation add to favorite", favorite });
   } catch (error) {
@@ -25,11 +25,11 @@ exports.addFavorite = async (req, res) => {
 
 exports.deleteFavorite = async (req, res) => {
   try {
-    const accommodationId = req.params.id; 
+    const boardingHouseId = req.params.id;
     const customerId = req.user.id;
 
 
-    const favorite = await Favorite.findOneAndDelete({ accommodationId, customerId });
+    const favorite = await Favorite.findOneAndDelete({ boardingHouseId, customerId });
 
     if (!favorite) {
       return res.status(404).json({ message: "Favorite not found" });
@@ -52,8 +52,8 @@ exports.getFavorite = async (req, res) => {
 
     const favorites = await Favorite.find({ customerId })
       .populate({
-        path: 'accommodationId',
-        model: 'Accommodation'
+        path: 'boardingHouseId',
+        model: 'BoardingHouse'
       })
       .exec();
 
@@ -67,33 +67,65 @@ exports.getFavorite = async (req, res) => {
   }
 };
 
-exports.getFavoriteById = async (req, res) => {
+exports.getUserFavorites = async (req, res) => { // Renamed function for clarity
   try {
-    const customerId = req.user.id;
-    const { accommodationId } = req.query; // lấy từ query string
+    const customerId = new mongoose.Types.ObjectId(req.user.id); // Cast ID once
+    const favorites = await Favorite.aggregate([
+      // 1. Match favorites for the current user
+      { $match: { customerId: customerId } },
+      // 2. Lookup BoardingHouse details
+      {
+        $lookup: {
+          from: 'boardinghouses', // Collection name for BoardingHouse
+          localField: 'boardingHouseId',
+          foreignField: '_id',
+          as: 'boardingHouseInfo'
+        }
+      },
+      // 3. Unwind the result (since lookup returns an array)
+      { $unwind: '$boardingHouseInfo' },
+      // 4. Lookup Rooms associated with the BoardingHouse
+      {
+        $lookup: {
+          from: 'rooms', // Collection name for Room
+          localField: 'boardingHouseInfo._id', // Use ID from the looked-up house
+          foreignField: 'boardingHouseId',
+          as: 'boardingHouseInfo.rooms' // Embed rooms directly into house info
+        }
+      },
+      // 5. Calculate necessary room stats (optional but good for frontend)
+      {
+        $addFields: {
+          'boardingHouseInfo.minPrice': { $min: '$boardingHouseInfo.rooms.price' },
+          'boardingHouseInfo.maxPrice': { $max: '$boardingHouseInfo.rooms.price' },
+          'boardingHouseInfo.totalRooms': { $size: '$boardingHouseInfo.rooms' },
+          'boardingHouseInfo.availableRoomsCount': {
+            $size: {
+              $filter: {
+                input: '$boardingHouseInfo.rooms',
+                as: 'room',
+                cond: { $eq: ['$$room.status', 'Available'] }
+              }
+            }
+          }
+        }
+      },
+      // 6. Project the final structure (match frontend expectation)
+      {
+        $project: {
+          _id: 1, // Keep favorite record ID
+          userId: '$customerId', // Rename for consistency if needed
+          boardingHouseId: '$boardingHouseInfo' // The populated house object
+          // Remove boardingHouseInfo.rooms if frontend doesn't need the full list here
+        }
+      }
+    ]);
 
-    if (!mongoose.Types.ObjectId.isValid(customerId)) {
-      return res.status(400).json({ message: 'Invalid customerId' });
-    }
+    // ✅ Return structure expected by frontend
+    res.status(200).json({ favorites });
 
-    const filter = { customerId };
-
-    if (accommodationId && mongoose.Types.ObjectId.isValid(accommodationId)) {
-      filter.accommodationId = accommodationId;
-    }
-
-    const favorites = await Favorite.find(filter)
-      .populate({
-        path: 'accommodationId',
-        model: 'Accommodation'
-      });
-
-    res.status(200).json({
-      message: 'Favorites fetched successfully',
-      favorites
-    });
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching user favorites:", error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

@@ -2,6 +2,8 @@ const Booking = require("../models/Booking");
 const BoardingHouse = require("../models/BoardingHouse");
 const Room = require('../models/Room');
 const Payment = require("../models/Payment");
+const Notification = require("../models/Notification"); // Thêm import còn thiếu
+const mongoose = require('mongoose')
 exports.createBooking = async (req, res) => {
   try {
     const { userId, propertyId, guestInfo, startDate, leaseDuration, guests } =
@@ -96,8 +98,8 @@ exports.updateBoardingHouseAfterPayment = async (req, res) => {
       });
     }
 
-    // Update BoardingHouse
-    const BoardingHouse = await BoardingHouse.findByIdAndUpdate(
+    // SỬA LỖI: Đổi tên biến 'BoardingHouse' thành 'updatedBoardingHouse' để tránh xung đột với tên Model
+    const updatedBoardingHouse = await BoardingHouse.findByIdAndUpdate(
       booking.propertyId,
       {
         customerId: booking.userId,
@@ -106,7 +108,7 @@ exports.updateBoardingHouseAfterPayment = async (req, res) => {
       { new: true }
     );
 
-    if (!BoardingHouse) {
+    if (!updatedBoardingHouse) {
       return res.status(404).json({
         message: "BoardingHouse not found"
       });
@@ -114,7 +116,7 @@ exports.updateBoardingHouseAfterPayment = async (req, res) => {
 
     res.status(200).json({
       message: "BoardingHouse updated successfully",
-      BoardingHouse,
+      BoardingHouse: updatedBoardingHouse, // Trả về nhà trọ đã update
       booking
     });
 
@@ -149,61 +151,182 @@ exports.getUserBookingForBoardingHouse = async (req, res) => {
   }
 };
 
-
-
-
-
-
 exports.getUserBookingHistory = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        console.log(`Getting booking history for user: ${userId}`);
+
+        const bookings = await Booking.aggregate([
+            // 1. Tìm booking của người dùng
+            { $match: { userId: new mongoose.Types.ObjectId(userId) } },
+            // 2. Sắp xếp mới nhất trước
+            { $sort: { createdAt: -1 } },
+            // 3. Join với collection 'payments' (tìm payment có cùng bookingId)
+            {
+                $lookup: {
+                    from: 'payments', // Tên collection payments
+                    localField: '_id', // Khóa cục bộ là _id của booking
+                    foreignField: 'bookingId', // Khóa ngoại trong payment là bookingId
+                    as: 'paymentDetails' // Tên mảng chứa kết quả join
+                }
+            },
+            // 4. Join với collection 'rooms'
+            {
+                $lookup: {
+                    from: 'rooms',
+                    localField: 'roomId',
+                    foreignField: '_id',
+                    as: 'roomDetails'
+                }
+            },
+            // 5. Join với collection 'boardinghouses'
+            {
+                $lookup: {
+                    from: 'boardinghouses',
+                    localField: 'boardingHouseId',
+                    foreignField: '_id',
+                    as: 'houseDetails'
+                }
+            },
+            // 6. Định dạng lại kết quả
+            {
+                $project: {
+                    _id: 1,
+                    contractStatus: 1,
+                    status: 1, // Trạng thái thanh toán của Booking
+                    rejectionReason: 1,
+                    createdAt: 1, // Ngày tạo booking (ngày yêu cầu)
+                    guestInfo: 1, // Giữ lại guestInfo
+                    // Lấy object đầu tiên từ mảng kết quả join
+                    room: { $arrayElemAt: ['$roomDetails', 0] },
+                    boardingHouse: { $arrayElemAt: ['$houseDetails', 0] },
+                    // Lấy thông tin payment (nếu có)
+                    paymentInfo: { $arrayElemAt: ['$paymentDetails', 0] }
+                }
+            },
+            // 7. (Tùy chọn) Thêm các trường tính toán nếu cần
+             {
+                 $addFields: {
+                     checkInDate: '$guestInfo.startDate',
+                     // Tính checkOutDate (ví dụ)
+                     checkOutDate: {
+                         $cond: {
+                             if: { $and: [ '$guestInfo.startDate', '$guestInfo.leaseDuration' ] },
+                             then: { $add: ['$guestInfo.startDate', { $multiply: ['$guestInfo.leaseDuration', 30, 24 * 60 * 60 * 1000] }] }, // Giả sử 1 tháng = 30 ngày
+                             else: null
+                         }
+                     },
+                     guests: '$guestInfo.guests',
+                     // Lấy tổng tiền từ payment hoặc tính toán từ phòng
+                     totalPrice: { $ifNull: ['$paymentInfo.amount', { $multiply: ['$room.price', { $ifNull: ['$guestInfo.leaseDuration', 1] }] } ] },
+                     // Lấy mã đơn hàng PayOS
+                     payosOrderCode: '$paymentInfo.orderCode'
+                 }
+             }
+        ]);
+
+        res.status(200).json(bookings); // Trả về mảng bookings đã được "làm giàu"
+
+    } catch (error) {
+        console.error("Error getting user booking history:", error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+exports.getUserBookingRequest = async (req, res) => {
   try {
-    // ✅ Lấy userId từ req.user (do middleware protect thêm vào)
+    // 1. Lấy userId từ req.user (Logic từ HEAD, bảo mật hơn)
     const userId = req.user?.id;
     if (!userId) {
-      // Trường hợp này không nên xảy ra nếu 'protect' hoạt động đúng
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    console.log(`Getting booking history for user: ${userId}`); // Log ID thực tế
+    console.log(`Getting booking history for user: ${userId}`);
 
-    // ✅ Dùng userId lấy từ req.user để truy vấn
+    // 2. Lấy tất cả booking, dùng .lean() (Logic từ 2 nhánh)
+    // Populate theo schema mới (từ HEAD)
     const bookings = await Booking.find({ userId: userId })
       .populate({
         path: 'boardingHouseId',
         select: 'name photos location',
       })
       .populate({
-        path: 'roomId', // Hoặc propertyId
+        path: 'roomId',
         select: 'roomNumber price area'
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
+    // 3. "LÀM GIÀU" DỮ LIỆU (Logic từ nhánh 5f05a64...)
     const enrichedBookings = await Promise.all(
       bookings.map(async (booking) => {
         // Với mỗi booking, tìm bản ghi Payment tương ứng
         const payment = await Payment.findOne({ bookingId: booking._id })
-          .select('orderCode amount') // Chỉ lấy 2 trường cần thiết
+          .select('orderCode amount')
           .lean();
 
-        // Thêm thông tin thanh toán vào object booking và format lại
+        // Thêm thông tin thanh toán và format
         return {
           ...booking, // Giữ lại toàn bộ thông tin booking cũ
           paymentInfo: {
-            payosOrderCode: payment?.orderCode, // Gán orderCode vào đây!
+            payosOrderCode: payment?.orderCode,
           },
-          // Format các trường khác ngay tại đây cho tiện
+          // Format các trường khác
           checkInDate: booking.guestInfo?.startDate,
-          // Lưu ý: Phần tính toán này nên được làm khi tạo booking để đảm bảo chính xác
           checkOutDate: new Date(new Date(booking.guestInfo?.startDate).getTime() + (parseInt(booking.guestInfo?.leaseDuration) || 1) * 24 * 60 * 60 * 1000),
           guests: booking.guestInfo?.guests || 1,
-          totalPrice: payment?.amount || (booking.propertyId?.price * (parseInt(booking.guestInfo?.leaseDuration) || 1)),
+          // SỬA LOGIC: Dùng giá từ roomId (theo schema mới) làm fallback
+          totalPrice: payment?.amount || (booking.roomId?.price * (parseInt(booking.guestInfo?.leaseDuration) || 1)),
         };
       })
     );
 
+    // 4. Trả về dữ liệu đã được làm giàu
     res.status(200).json(enrichedBookings);
+
   } catch (error) {
     console.error("Error getting user booking history:", error);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.getBookingById = async (req, res) => {
+  try {
+    const bookingId = req.params.id; // Lấy 'id' từ URL (vd: /api/bookings/123)
+    const userId = req.user.id; // Lấy từ middleware 'protect'
+
+    const booking = await Booking.findById(bookingId)
+      .populate({
+        path: 'roomId',
+        select: 'roomNumber price area'
+      })
+      .populate({
+        path: 'boardingHouseId',
+        select: 'name photos location ownerId' // Thêm ownerId để kiểm tra quyền
+      });
+
+    if (!booking) {
+      return res.status(404).json({ message: 'Không tìm thấy đơn đặt phòng.' });
+    }
+
+    // (Bảo mật) Chỉ cho phép người thuê hoặc chủ nhà xem booking này
+    const isTenant = booking.userId.toString() === userId;
+    const isOwner = booking.boardingHouseId.ownerId.toString() === userId;
+
+    if (!isTenant && !isOwner) {
+      return res.status(403).json({ message: 'Bạn không có quyền xem đơn đặt phòng này.' });
+    }
+
+    // Nếu mọi thứ OK, trả về booking
+    res.status(200).json(booking);
+
+  } catch (error) {
+    console.error("Error fetching booking by ID:", error);
+    res.status(500).json({ message: 'Lỗi server' });
   }
 };
 
@@ -244,6 +367,7 @@ exports.getBookingsByBoardingHouse = async (req, res) => {
 exports.requestBooking = async (req, res) => {
   const { boardingHouseId, roomId } = req.body;
   const userId = req.user.id; // Lấy từ middleware protect
+  const userName = req.user.name; // SỬA LỖI: Lấy userName từ req.user
 
   try {
     const room = await Room.findOne({ _id: roomId, boardingHouseId: boardingHouseId });
@@ -270,7 +394,7 @@ exports.requestBooking = async (req, res) => {
     const savedBooking = await newBooking.save();
 
     // Lấy thông tin chủ nhà để gửi thông báo
-    const house = await BoardingHouse.findById(boardingHouseId).select('ownerId');
+    const house = await BoardingHouse.findById(boardingHouseId).select('ownerId name'); // Thêm 'name' để dùng trong message
 
     if (house && house.ownerId && room) {
       await Notification.create({
@@ -314,7 +438,6 @@ exports.getPendingBookings = async (req, res) => {
     res.status(500).json({ message: 'Lỗi server khi lấy yêu cầu.' });
   }
 };
-
 
 exports.updateBookingApproval = async (req, res) => {
   const { bookingId } = req.params;
@@ -374,8 +497,8 @@ exports.cancelBookingRequest = async (req, res) => {
     // ✅ SỬ DỤNG findByIdAndUpdate ĐỂ AN TOÀN HƠN
     const updatedBooking = await Booking.findOneAndUpdate(
       {
-        _id: bookingId,          // Tìm đúng booking
-        userId: userId,          // Đảm bảo đúng người dùng
+        _id: bookingId,          // Tìm đúng booking
+        userId: userId,          // Đảm bảo đúng người dùng
         contractStatus: 'pending_approval' // Đảm bảo đúng trạng thái có thể hủy
       },
       {

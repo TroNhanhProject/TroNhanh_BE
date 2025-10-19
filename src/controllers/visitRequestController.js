@@ -1,6 +1,6 @@
 // controllers/visitRequestController.js
 const VisitRequest = require("../models/VisitRequest");
-const Accommodation = require("../models/Accommodation");
+const BoardingHouse = require("../models/BoardingHouse");
 const emitPendingCountToOwner = async (io, ownerId) => {
   try {
     // Đếm số lượng request 'pending' của owner đó

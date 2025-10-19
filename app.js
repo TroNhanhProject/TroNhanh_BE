@@ -2,8 +2,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const socketIo = require("socket.io");
-const http = require("http");
-
 require("dotenv").config();
 const crypto = require("crypto");
 const Payment = require("./src/models/Payment"); 

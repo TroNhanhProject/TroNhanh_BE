@@ -1,174 +1,179 @@
-    const axios = require("axios");
-    const crypto = require("crypto");
-    const Payment = require("../models/Payment");
-    const MembershipPackage = require("../models/MembershipPackage");
-    const Booking = require("../models/Booking");
-    const Accommodation = require("../models/Accommodation");
-    const User = require("../models/User");
-    const Membership = require('../models/Membership')
+const axios = require("axios");
+const crypto = require("crypto");
+const Payment = require("../models/Payment");
+const MembershipPackage = require("../models/MembershipPackage");
+const Booking = require("../models/Booking");
+const BoardingHouse = require("../models/BoardingHouse");
+const User = require("../models/User");
+const Membership = require('../models/Membership')
 
-    const PAYOS_SANDBOX_API = "https://api-merchant.payos.vn/v2/payment-requests";
-    const PAYOS_PROD_API = "https://api-merchant.payos.vn/v2/payment-requests"; 
-  exports.createPaymentUrl = async (req, res) => {
-    try {
-        const { packageId, userId, bookingId, type } = req.body;
-        if (!userId || !type) return res.status(400).json({ message: "Missing required fields (userId, type)" });
+const PAYOS_SANDBOX_API = "https://api-merchant.payos.vn/v2/payment-requests";
+const PAYOS_PROD_API = "https://api-merchant.payos.vn/v2/payment-requests";
 
-        let amount = 0, description = "", finalBookingId = bookingId, userMembershipId = null, membershipPackageId = null;
+exports.createPaymentUrl = async (req, res) => {
+  try {
+    const { packageId, userId, bookingId, type, amount: clientAmount } = req.body;
+    if (!userId || !type) return res.status(400).json({ message: "Missing required fields (userId, type)" });
 
-        // Lấy user
-        const user = await User.findById(userId);
-        if (!user) return res.status(404).json({ message: "User not found." });
+    let amount = 0, description = "", finalBookingId = bookingId, userMembershipId = null, membershipPackageId = null;
 
-        // Xử lý theo type
-        if (type === "membership") {
-            if (!packageId) return res.status(400).json({ message: "packageId is required for membership purchase" });
+    // Lấy user
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found." });
 
-            const membershipPackage = await MembershipPackage.findById(packageId);
-            if (!membershipPackage || !membershipPackage.isActive) return res.status(404).json({ message: "Membership package not found or inactive." });
 
-            amount = membershipPackage.price;
-            description = `Buy Membership: ${membershipPackage.packageName}`;
-            membershipPackageId = membershipPackage._id;
+    // Xử lý theo type
+    if (type === "membership") {
+      if (!packageId) return res.status(400).json({ message: "packageId is required for membership purchase" });
 
-            // Kiểm tra pending membership
-            const existingMembership = await Membership.findOne({ ownerId: userId, packageId, status: 'Pending' });
-            if (existingMembership) return res.status(400).json({ message: "You already have a pending membership for this package." });
+      const membershipPackage = await MembershipPackage.findById(packageId);
+      if (!membershipPackage || !membershipPackage.isActive) return res.status(404).json({ message: "Membership package not found or inactive." });
 
-            // Tạo Pending membership với startDate = now, endDate = startDate + duration
-            const now = new Date();
-            const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
-            const endDate = new Date(now.getTime() + durationMs);
+      amount = membershipPackage.price;
+      description = `Buy Membership: ${membershipPackage.packageName}`;
+      membershipPackageId = membershipPackage._id;
 
-            const userMembership = await Membership.create({
-                ownerId: userId,
-                packageId: membershipPackage._id,
-                type: membershipPackage.packageName,
-                price: amount,
-                status: 'Pending',
-                startDate: now,
-                endDate: endDate
-            });
-            userMembershipId = userMembership._id;
+      // Kiểm tra pending membership
+      const existingMembership = await Membership.findOne({ ownerId: userId, packageId, status: 'Pending' });
+      if (existingMembership) return res.status(400).json({ message: "You already have a pending membership for this package." });
 
-        } else if (type === "booking") {
-            if (!bookingId) return res.status(400).json({ message: "bookingId is required for booking payment" });
-            const booking = await Booking.findById(bookingId);
-            if (!booking) return res.status(404).json({ message: "Booking not found." });
+      // Tạo Pending membership với startDate = now, endDate = startDate + duration
+      const now = new Date();
+      const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
+      const endDate = new Date(now.getTime() + durationMs);
 
-            amount = booking.totalPrice;
-            description = `Pay for Booking #${booking.bookingCode || booking._id}`;
-        } else {
-            return res.status(400).json({ message: "Invalid payment type" });
-        }
+      const userMembership = await Membership.create({
+        ownerId: userId,
+        packageId: membershipPackage._id,
+        type: membershipPackage.packageName,
+        price: amount,
+        status: 'Pending',
+        startDate: now,
+        endDate: endDate
+      });
+      userMembershipId = userMembership._id;
 
-        // Sandbox test
-        const useSandbox = process.env.PAYOS_USE_SANDBOX === "true";
-        const testAmount = useSandbox && process.env.PAYOS_TEST_AMOUNT ? parseInt(process.env.PAYOS_TEST_AMOUNT, 10) : null;
-        if (testAmount && !isNaN(testAmount)) amount = testAmount;
+    } else if (type === "booking") {
+      if (!bookingId) return res.status(400).json({ message: "bookingId is required for booking payment" });
+      if (!clientAmount || clientAmount <= 0) {
+        return res.status(400).json({ message: "Amount is required for booking payment" });
+      }
+      const booking = await Booking.findById(bookingId);
+      if (!booking) return res.status(404).json({ message: "Booking not found." });
 
-        const orderCode = Math.floor(Date.now() / 1000);
-
-        // URLs
-        const baseReturnUrl = user.role === 'owner' ? process.env.PAYOS_RETURN_URL_OWNER : process.env.PAYOS_RETURN_URL;
-        const baseCancelUrl = user.role === 'owner' ? process.env.PAYOS_CANCEL_URL_OWNER : process.env.PAYOS_CANCEL_URL;
-        const returnUrl = `${baseReturnUrl}&orderCode=${orderCode}&type=${type}${finalBookingId ? `&bookingId=${finalBookingId}` : ''}`;
-        const cancelUrl = `${baseCancelUrl}&type=${type}`;
-
-        // Signature
-        const rawSignature = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description.slice(0,25)}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
-        const signature = crypto.createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY).update(rawSignature).digest("hex");
-
-        const payload = { orderCode, amount, description: description.slice(0,25), cancelUrl, returnUrl, signature };
-        const PAYOS_API = useSandbox ? PAYOS_SANDBOX_API : PAYOS_PROD_API;
-
-        const response = await axios.post(PAYOS_API, payload, {
-            headers: {
-                "x-client-id": process.env.PAYOS_CLIENT_ID,
-                "x-api-key": process.env.PAYOS_API_KEY,
-            },
-        });
-
-        const checkoutUrl = response.data?.data?.checkoutUrl;
-        if (!checkoutUrl) {
-            console.log("📩 PayOS raw response:", response.data);
-            throw new Error("PayOS response invalid: no checkoutUrl returned");
-        }
-
-        // ExpiredAt 15 phút
-        const expiredAt = new Date(Date.now() + 15 * 60000);
-
-        // Tạo Payment record
-        await Payment.create({
-            ownerId: userId,
-            userMembershipId,
-            membershipPackageId,
-            bookingId: finalBookingId,
-            title: description,
-            amount,
-            status: "Pending",
-            orderCode,
-            expiredAt
-        });
-
-        return res.json({ url: checkoutUrl });
-
-    } catch (error) {
-        console.error("❌ PayOS Error:", error.response?.data || error.message);
-        return res.status(500).json({
-            message: "Failed to create PayOS payment",
-            details: error.response?.data || error.message,
-        });
+      amount = clientAmount;
+      description = `Pay for Booking #${booking.bookingCode || booking._id}`;
+    } else {
+      return res.status(400).json({ message: "Invalid payment type" });
     }
+
+    // Sandbox test
+    const useSandbox = process.env.PAYOS_USE_SANDBOX === "true";
+    // const testAmount = useSandbox && process.env.PAYOS_TEST_AMOUNT ? parseInt(process.env.PAYOS_TEST_AMOUNT, 10) : null;
+    // if (testAmount && !isNaN(testAmount)) amount = testAmount;
+
+    const orderCode = Math.floor(Date.now() / 1000);
+
+    // URLs
+    const baseReturnUrl = user.role === 'owner' ? process.env.PAYOS_RETURN_URL_OWNER : process.env.PAYOS_RETURN_URL;
+    const baseCancelUrl = user.role === 'owner' ? process.env.PAYOS_CANCEL_URL_OWNER : process.env.PAYOS_CANCEL_URL;
+    const returnUrl = `${baseReturnUrl}&orderCode=${orderCode}&type=${type}${finalBookingId ? `&bookingId=${finalBookingId}` : ''}`;
+    const cancelUrl = `${baseCancelUrl}&type=${type}`;
+
+    // Signature
+    const rawSignature = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description.slice(0, 25)}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
+    const signature = crypto.createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY).update(rawSignature).digest("hex");
+
+    const payload = { orderCode, amount, description: description.slice(0, 25), cancelUrl, returnUrl, signature };
+    const PAYOS_API = useSandbox ? PAYOS_SANDBOX_API : PAYOS_PROD_API;
+
+    const response = await axios.post(PAYOS_API, payload, {
+      headers: {
+        "x-client-id": process.env.PAYOS_CLIENT_ID,
+        "x-api-key": process.env.PAYOS_API_KEY,
+      },
+    });
+
+    const checkoutUrl = response.data?.data?.checkoutUrl;
+    if (!checkoutUrl) {
+      console.log("📩 PayOS raw response:", response.data);
+      throw new Error("PayOS response invalid: no checkoutUrl returned");
+    }
+
+    // ExpiredAt 15 phút
+    const expiredAt = new Date(Date.now() + 15 * 60000);
+
+    // Tạo Payment record
+    await Payment.create({
+      ownerId: userId,
+      userMembershipId,
+      membershipPackageId,
+      bookingId: finalBookingId,
+      title: description,
+      amount,
+      status: "Pending",
+      orderCode,
+      expiredAt
+    });
+
+    return res.json({ url: checkoutUrl });
+
+  } catch (error) {
+    console.error("❌ PayOS Error:", error.response?.data || error.message);
+    return res.status(500).json({
+      message: "Failed to create PayOS payment",
+      details: error.response?.data || error.message,
+    });
+  }
 };
 
 
-    /**
-     * PayOS không gọi callback trực tiếp như VNPay,
-     * nên bạn nên dùng webhook PayOS để xác nhận thanh toán thành công.
-     * Tuy nhiên, nếu bạn chỉ cần redirect + query success/fail (test/demo),
-     * bạn có thể xử lý qua `returnUrl` như VNPayReturn trước đây.
-     */
+/**
+ * PayOS không gọi callback trực tiếp như VNPay,
+ * nên bạn nên dùng webhook PayOS để xác nhận thanh toán thành công.
+ * Tuy nhiên, nếu bạn chỉ cần redirect + query success/fail (test/demo),
+ * bạn có thể xử lý qua `returnUrl` như VNPayReturn trước đây.
+ */
 
-    exports.payosReturn = async (req, res) => {
-        try {
-            console.log("🔁 PayOS user is returning with query:", req.query);
+exports.payosReturn = async (req, res) => {
+  try {
+    console.log("🔁 PayOS user is returning with query:", req.query);
 
-            // Lấy tất cả các query params mà PayOS trả về
-            const queryParams = req.query;
+    // Lấy tất cả các query params mà PayOS trả về
+    const queryParams = req.query;
 
-            // Xác định trang frontend cần chuyển hướng đến
-            // Dựa trên thông tin em có, hoặc mặc định
-            // Ví dụ: em có thể thêm một param 'type' vào returnUrl lúc tạo
-            // Ở đây ta dùng URL cơ sở từ .env
-          let baseFrontendUrl = process.env.PAYOS_RETURN_URL;// Ví dụ: http://localhost:3000/customer/booking-result
-  if (queryParams.userId) {
-            const user = await User.findById(queryParams.userId);
-            if (user && user.role === 'owner') {
-                baseFrontendUrl = process.env.PAYOS_RETURN_URL_OWNER;
-            }
-        }
+    // Xác định trang frontend cần chuyển hướng đến
+    // Dựa trên thông tin em có, hoặc mặc định
+    // Ví dụ: em có thể thêm một param 'type' vào returnUrl lúc tạo
+    // Ở đây ta dùng URL cơ sở từ .env
+    let baseFrontendUrl = process.env.PAYOS_RETURN_URL;// Ví dụ: http://localhost:3000/customer/booking-result
+    if (queryParams.userId) {
+      const user = await User.findById(queryParams.userId);
+      if (user && user.role === 'owner') {
+        baseFrontendUrl = process.env.PAYOS_RETURN_URL_OWNER;
+      }
+    }
 
-            // Xây dựng lại URL của frontend với đầy đủ thông tin
-            const redirectUrl = new URL(baseFrontendUrl);
+    // Xây dựng lại URL của frontend với đầy đủ thông tin
+    const redirectUrl = new URL(baseFrontendUrl);
 
-            // Gắn tất cả các query params từ PayOS vào URL để redirect
-            // Frontend sẽ tự đọc các params này (success, orderCode, bookingCode, etc.)
-            for (const key in queryParams) {
-                redirectUrl.searchParams.set(key, queryParams[key]);
-            }
-            
-            // Chuyển hướng người dùng về frontend
-            return res.redirect(redirectUrl.toString());
+    // Gắn tất cả các query params từ PayOS vào URL để redirect
+    // Frontend sẽ tự đọc các params này (success, orderCode, bookingCode, etc.)
+    for (const key in queryParams) {
+      redirectUrl.searchParams.set(key, queryParams[key]);
+    }
 
-        } catch (error) {
-            console.error("❌ PayOS return error:", error);
-            // Nếu có lỗi, chuyển về một trang lỗi chung
-            const errorRedirectUrl = new URL(process.env.PAYOS_CANCEL_URL);
-            errorRedirectUrl.searchParams.set('error', 'processing_return_url');
-            return res.redirect(errorRedirectUrl.toString());
-        }
-    };
+    // Chuyển hướng người dùng về frontend
+    return res.redirect(redirectUrl.toString());
+
+  } catch (error) {
+    console.error("❌ PayOS return error:", error);
+    // Nếu có lỗi, chuyển về một trang lỗi chung
+    const errorRedirectUrl = new URL(process.env.PAYOS_CANCEL_URL);
+    errorRedirectUrl.searchParams.set('error', 'processing_return_url');
+    return res.redirect(errorRedirectUrl.toString());
+  }
+};
 
 exports.handlePayOSWebhook = async (req, res) => {
   try {
@@ -213,91 +218,103 @@ exports.handlePayOSWebhook = async (req, res) => {
       payment.status = "Paid";
       payment.completedAt = new Date();
       await payment.save();
-
+      console.log(`[Webhook] Payment ${payment._id} updated to Paid.`);
       // Xử lý booking nếu có
       if (payment.bookingId) {
+        console.log(`[Webhook] Processing Booking ID: ${payment.bookingId}`);
         const updatedBooking = await Booking.findByIdAndUpdate(
           payment.bookingId,
-          { status: "Paid" },
-          { new: true }
+          { status: "paid", contractStatus: "paid" }, // Update both statuses
+          { new: true } // Return the updated document
         );
-        if (updatedBooking) {
-          await Accommodation.findByIdAndUpdate(updatedBooking.propertyId, {
+
+        // ✅ Check if booking was updated and has roomId
+        if (updatedBooking && updatedBooking.roomId) {
+          console.log(`[Webhook] Attempting to update Room ID: ${updatedBooking.roomId} to Booked`);
+          // ✅ UPDATE THE SPECIFIC ROOM
+          const updatedRoom = await Room.findByIdAndUpdate(updatedBooking.roomId, {
             status: "Booked",
-            customerId: updatedBooking.userId,
+            customerId: updatedBooking.userId, // Assign the customer to the room
           });
+          if (updatedRoom) {
+            console.log(`✅ [Webhook] Room ${updatedBooking.roomId} successfully marked as Booked.`);
+          } else {
+            console.warn(`⚠️ [Webhook] Could not find Room ${updatedBooking.roomId} to update status.`);
+          }
+        } else {
+          console.warn(`⚠️ [Webhook] Booking ${payment.bookingId} update failed or missing roomId.`);
         }
       }
 
       // Xử lý membership nếu có
-if (payment.membershipPackageId && payment.ownerId) {
- // Lấy gói membership (cần thiết cho thông tin duration, type, price)
- const membershipPackage = await MembershipPackage.findById(payment.membershipPackageId);
- if (!membershipPackage) {
- console.error(`Webhook Error: MembershipPackage ${payment.membershipPackageId} not found.`);
- throw new Error("MembershipPackage not found during webhook processing");
-}
+      if (payment.membershipPackageId && payment.ownerId) {
+        // Lấy gói membership (cần thiết cho thông tin duration, type, price)
+        const membershipPackage = await MembershipPackage.findById(payment.membershipPackageId);
+        if (!membershipPackage) {
+          console.error(`Webhook Error: MembershipPackage ${payment.membershipPackageId} not found.`);
+          throw new Error("MembershipPackage not found during webhook processing");
+        }
 
- const now = new Date();
- const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
+        const now = new Date();
+        const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
 
- // Tìm Active membership CÙNG LOẠI (packageName)
- const existingActive = await Membership.findOne({
- ownerId: payment.ownerId,
- type: membershipPackage.packageName, // Quan trọng: kiểm tra theo 'type' (ví dụ: 'Bronze')
- status: "Active"
- });
+        // Tìm Active membership CÙNG LOẠI (packageName)
+        const existingActive = await Membership.findOne({
+          ownerId: payment.ownerId,
+          type: membershipPackage.packageName, // Quan trọng: kiểm tra theo 'type' (ví dụ: 'Bronze')
+          status: "Active"
+        });
 
- if (existingActive) {
- // 1. GIA HẠN: Nếu đã có gói Active cùng loại, gia hạn endDate
- existingActive.endDate = new Date(
-// Lấy thời gian hết hạn hiện tại, hoặc 'now' nếu nó đã hết hạn, rồi cộng thêm
- Math.max(existingActive.endDate?.getTime() || now.getTime(), now.getTime()) + durationMs
-);
-// Đảm bảo packageId được cập nhật (nếu logic của bạn cho phép nâng cấp/thay đổi gói)
- existingActive.packageId = membershipPackage._id;
- await existingActive.save();
+        if (existingActive) {
+          // 1. GIA HẠN: Nếu đã có gói Active cùng loại, gia hạn endDate
+          existingActive.endDate = new Date(
+            // Lấy thời gian hết hạn hiện tại, hoặc 'now' nếu nó đã hết hạn, rồi cộng thêm
+            Math.max(existingActive.endDate?.getTime() || now.getTime(), now.getTime()) + durationMs
+          );
+          // Đảm bảo packageId được cập nhật (nếu logic của bạn cho phép nâng cấp/thay đổi gói)
+          existingActive.packageId = membershipPackage._id;
+          await existingActive.save();
 
-    // Xóa Pending membership (nếu nó tồn tại) vì đã gia hạn
-    if (payment.userMembershipId) {
-      await Membership.findByIdAndDelete(payment.userMembershipId);
-    }
-  } else {
-    // 2. KÍCH HOẠT HOẶC TẠO MỚI: Nếu không có gói Active
-    
-    // Thử tìm 'Pending' membership đã được tạo lúc thanh toán
-    let pendingMembership = null;
-    if (payment.userMembershipId) {
-        pendingMembership = await Membership.findById(payment.userMembershipId);
-    }
+          // Xóa Pending membership (nếu nó tồn tại) vì đã gia hạn
+          if (payment.userMembershipId) {
+            await Membership.findByIdAndDelete(payment.userMembershipId);
+          }
+        } else {
+          // 2. KÍCH HOẠT HOẶC TẠO MỚI: Nếu không có gói Active
 
-    if (pendingMembership && pendingMembership.status === 'Pending') {
-      // 2a. Kích hoạt 'Pending' thành 'Active'
-      pendingMembership.status = "Active";
-      pendingMembership.startDate = now;
-      pendingMembership.endDate = new Date(now.getTime() + durationMs);
-      // Cập nhật lại thông tin gói (để đảm bảo)
-      pendingMembership.packageId = membershipPackage._id;
-      pendingMembership.type = membershipPackage.packageName;
-      pendingMembership.price = membershipPackage.price;
-      await pendingMembership.save();
-    } else {
-      // 2b. Tạo mới 'Active' (dự phòng trường hợp không tìm thấy pending)
-      await Membership.create({
-        ownerId: payment.ownerId,
-        packageId: membershipPackage._id, // packageId được cung cấp
-        type: membershipPackage.packageName,
-        price: membershipPackage.price,
-        status: "Active",
-        startDate: now,
-        endDate: new Date(now.getTime() + durationMs)
-      });
-    }
-  }
+          // Thử tìm 'Pending' membership đã được tạo lúc thanh toán
+          let pendingMembership = null;
+          if (payment.userMembershipId) {
+            pendingMembership = await Membership.findById(payment.userMembershipId);
+          }
 
-  // Cập nhật trạng thái user
-  await User.findByIdAndUpdate(payment.ownerId, { isMembership: "active" });
-}
+          if (pendingMembership && pendingMembership.status === 'Pending') {
+            // 2a. Kích hoạt 'Pending' thành 'Active'
+            pendingMembership.status = "Active";
+            pendingMembership.startDate = now;
+            pendingMembership.endDate = new Date(now.getTime() + durationMs);
+            // Cập nhật lại thông tin gói (để đảm bảo)
+            pendingMembership.packageId = membershipPackage._id;
+            pendingMembership.type = membershipPackage.packageName;
+            pendingMembership.price = membershipPackage.price;
+            await pendingMembership.save();
+          } else {
+            // 2b. Tạo mới 'Active' (dự phòng trường hợp không tìm thấy pending)
+            await Membership.create({
+              ownerId: payment.ownerId,
+              packageId: membershipPackage._id, // packageId được cung cấp
+              type: membershipPackage.packageName,
+              price: membershipPackage.price,
+              status: "Active",
+              startDate: now,
+              endDate: new Date(now.getTime() + durationMs)
+            });
+          }
+        }
+
+        // Cập nhật trạng thái user
+        await User.findByIdAndUpdate(payment.ownerId, { isMembership: "active" });
+      }
 
 
 

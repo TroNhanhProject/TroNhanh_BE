@@ -13,22 +13,22 @@ const BookingSchema = new mongoose.Schema({
     leaseDuration: String,
     guests: Number,
   },
-  status: { type: String, default: "pending" }, 
+  status: { type: String, default: "pending" },
   paymentInfo: Object,
-    expiresAt: { type: Date },
+  expiresAt: { type: Date },
   contractStatus: {
-        type: String,
-        enum: ['pending_approval', 'approved', 'rejected', 'cancelled_by_tenant', 'payment_pending', 'paid', 'completed'], // Thêm các trạng thái
-        default: 'pending_approval',
-        required: true,
-        index: true 
-    },
-    rejectionReason: { 
-        type: String,
-        default: ''
-    },
-    approvedAt: Date,
-    rejectedAt: Date, 
+    type: String,
+    enum: ['pending_approval', 'approved', 'rejected', 'cancelled_by_tenant', 'payment_pending', 'paid', 'completed'], // Thêm các trạng thái
+    default: 'pending_approval',
+    required: true,
+    index: true
+  },
+  rejectionReason: {
+    type: String,
+    default: ''
+  },
+  approvedAt: Date,
+  rejectedAt: Date,
   createdAt: { type: Date, default: Date.now },
 });
 module.exports = mongoose.model("Booking", BookingSchema);

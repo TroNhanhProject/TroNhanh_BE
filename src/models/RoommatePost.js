@@ -1,10 +1,11 @@
 // models/RoommatePost.js
 const mongoose = require('mongoose');
+const BoardingHouse = require('./BoardingHouse');
 
 const roommatePostSchema = new mongoose.Schema({
-  accommodationId: {
+  boardingHouseId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Accommodation',
+    ref: 'BoardingHouse',
     required: true
   },
   userId: {

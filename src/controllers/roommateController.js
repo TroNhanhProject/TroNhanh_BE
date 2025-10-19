@@ -2,11 +2,11 @@ const RoommatePost = require('../models/RoommatePost');
 
 exports.createPost = async (req, res) => {
   try {
-    const { accommodationId, intro, genderPreference, habits } = req.body;
+    const { boardingHouseId, intro, genderPreference, habits } = req.body;
     const userId = req.user.id;
 
     const post = await RoommatePost.create({
-      accommodationId,
+      boardingHouseId,
       userId,
       intro,
       genderPreference,
@@ -21,9 +21,9 @@ exports.createPost = async (req, res) => {
 
 exports.getPostsByAccommodation = async (req, res) => {
   try {
-    const { accommodationId } = req.params;
+    const { boardingHouseId } = req.params;
 
-    const posts = await RoommatePost.find({ accommodationId })
+    const posts = await RoommatePost.find({ boardingHouseId })
       .populate('userId', 'name avatar phone gender')
       .sort({ createdAt: -1 });
 

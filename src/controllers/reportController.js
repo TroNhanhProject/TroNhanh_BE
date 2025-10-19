@@ -1,7 +1,7 @@
 const Report = require('../models/Report')
 const User = require('../models/User');
 const Booking = require('../models/Booking');
-const Accommodation = require('../models/BoardingHouse')
+const BoardingHouse = require('../models/BoardingHouse')
 exports.createReport = async (req, res) => {
   try {
     const { type, content, accommodationId, bookingId, reportedUserId } = req.body;
@@ -33,11 +33,9 @@ exports.createReport = async (req, res) => {
   } catch (error) {
     console.error("❌ Error creating report:", error);
     res.status(500).json({ message: "Failed to create report" });
-    res.status(500).json({ message: "Failed to create report" });
   }
 };
 
-};
 
 
 exports.getMyReports = async (req, res) => {
@@ -81,7 +79,7 @@ exports.checkBookingHistory = async (req, res) => {
     }
 
     // Tìm tất cả accommodation thuộc owner bị báo cáo
-    const properties = await Accommodation.find({ ownerId: reportedUserId }).select("_id");
+    const properties = await BoardingHouse.find({ ownerId: reportedUserId }).select("_id");
 
     const propertyIds = properties.map(p => p._id);
 

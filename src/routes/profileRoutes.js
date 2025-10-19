@@ -17,7 +17,6 @@ router.get('/favorites', favoriteController.getFavorite);
 // ===== Messages =====
 router.get('/messages', messageController.getUserMessages);
 router.post('/messages', messageController.sendMessage);
-router.delete('/messages/:id', messageController.deleteMessage);
 
 // ===== MyReports =====
 

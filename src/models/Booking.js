@@ -15,6 +15,7 @@ const BookingSchema = new mongoose.Schema({
   },
   status: { type: String, default: "pending" }, 
   paymentInfo: Object,
+    expiresAt: { type: Date },
   contractStatus: {
         type: String,
         enum: ['pending_approval', 'approved', 'rejected', 'cancelled_by_tenant', 'payment_pending', 'paid', 'completed'], // Thêm các trạng thái

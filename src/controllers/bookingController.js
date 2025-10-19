@@ -1,7 +1,7 @@
 const Booking = require("../models/Booking");
 const BoardingHouse = require("../models/BoardingHouse");
 const Room = require('../models/Room');
-
+const Payment = require("../models/Payment");
 exports.createBooking = async (req, res) => {
   try {
     const { userId, propertyId, guestInfo, startDate, leaseDuration, guests } =
@@ -18,7 +18,25 @@ exports.createBooking = async (req, res) => {
         .status(400)
         .json({ message: "BoardingHouse is not available for booking." });
     }
+    const existingBooking = await Booking.findOne({
+      userId,
+      propertyId,
+      status: "pending",
+    });
 
+    if (existingBooking) {
+      const minutesSince = (Date.now() - existingBooking.createdAt) / (1000 * 60);
+      if (minutesSince < 15) {
+        return res.status(400).json({
+          message: "You already have a pending booking for this accommodation. Please complete payment or wait 15 minutes."
+        });
+      } else {
+        existingBooking.status = "cancelled";
+        await existingBooking.save();
+      }
+    }
+
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
     const booking = await Booking.create({
       userId,
       propertyId,
@@ -131,7 +149,11 @@ exports.getUserBookingForBoardingHouse = async (req, res) => {
   }
 };
 
-// Get all booking history for a user
+
+
+
+
+
 exports.getUserBookingHistory = async (req, res) => {
   try {
     // ✅ Lấy userId từ req.user (do middleware protect thêm vào)
@@ -155,8 +177,30 @@ exports.getUserBookingHistory = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    res.status(200).json(bookings);
+    const enrichedBookings = await Promise.all(
+      bookings.map(async (booking) => {
+        // Với mỗi booking, tìm bản ghi Payment tương ứng
+        const payment = await Payment.findOne({ bookingId: booking._id })
+          .select('orderCode amount') // Chỉ lấy 2 trường cần thiết
+          .lean();
 
+        // Thêm thông tin thanh toán vào object booking và format lại
+        return {
+          ...booking, // Giữ lại toàn bộ thông tin booking cũ
+          paymentInfo: {
+            payosOrderCode: payment?.orderCode, // Gán orderCode vào đây!
+          },
+          // Format các trường khác ngay tại đây cho tiện
+          checkInDate: booking.guestInfo?.startDate,
+          // Lưu ý: Phần tính toán này nên được làm khi tạo booking để đảm bảo chính xác
+          checkOutDate: new Date(new Date(booking.guestInfo?.startDate).getTime() + (parseInt(booking.guestInfo?.leaseDuration) || 1) * 24 * 60 * 60 * 1000),
+          guests: booking.guestInfo?.guests || 1,
+          totalPrice: payment?.amount || (booking.propertyId?.price * (parseInt(booking.guestInfo?.leaseDuration) || 1)),
+        };
+      })
+    );
+
+    res.status(200).json(enrichedBookings);
   } catch (error) {
     console.error("Error getting user booking history:", error);
     res.status(500).json({ message: 'Server error' });
@@ -218,7 +262,7 @@ exports.requestBooking = async (req, res) => {
 
     const newBooking = new Booking({
       userId,
-      roomId, 
+      roomId,
       boardingHouseId,
       contractStatus: 'pending_approval',
     });

@@ -5,11 +5,131 @@ const socketIo = require("socket.io");
 const http = require("http");
 
 require("dotenv").config();
+const crypto = require("crypto");
+const Payment = require("./src/models/Payment"); 
+const Booking = require("./src/models/Booking");
+const http = require('http'); 
+const { Server } = require("socket.io");
+require("./src/service/cancelExpiredBookings");
 
 const PORT = process.env.PORT;
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { 
+    cors: {
+        origin: "*", 
+        methods: ["GET", "POST"]
+    }
+});
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+io.on('connection', (socket) => {
+  console.log('A user connected');
 
+  // Cho user tham gia một "phòng" riêng, đặt tên bằng userId của họ
+  // Client sẽ gửi sự kiện này sau khi kết nối
+  socket.on('joinUserRoom', (userId) => {
+    if (userId) {
+      socket.join(userId);
+      console.log(`User ${userId} joined room ${userId}`);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected');
+  });
+});
 app.use(cors()); //Share tai nguyen giua cac cong khac nhau
+
+const { handlePayOSWebhook } = require("./src/controllers/payOSController");
+
+
+// Dành cho PayOS xác thực URL
+app.get("/api/payment/webhook", (req, res) => {
+    console.log("!!!!!!!!!! BẮT ĐƯỢC REQUEST GET XÁC THỰC !!!!!!!!!!");
+    res.status(200).json({ message: "DEBUG SUCCESS: GET request received!" });
+});
+
+// Dành cho PayOS gửi dữ liệu thanh toán
+app.post("/api/payment/webhook", express.raw({ type: "application/json" }), async (req, res) => { // Thêm async ở đây
+    console.log("!!!!!!!!!! BẮT ĐƯỢC REQUEST WEBHOOK !!!!!!!!!!");
+
+    try {
+        const isSandbox = process.env.PAYOS_USE_SANDBOX === "true";
+
+        console.log("📌 Headers webhook:", req.headers);
+        console.log("📌 Raw body type:", typeof req.body, req.body instanceof Buffer);
+
+        // --- Signature check ---
+        if (!isSandbox) {
+            const signature = req.headers["x-signature"];
+            if (!(req.body instanceof Buffer)) {
+                throw new Error("req.body is not a Buffer, cannot compute signature");
+            }
+            const computedSig = crypto
+                .createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY)
+                .update(req.body)
+                .digest("hex");
+            if (computedSig !== signature) {
+                console.log("❌ Invalid PayOS signature");
+                return res.status(400).json({ message: "Invalid signature" });
+            }
+        } else {
+            console.log("⚠️ Sandbox mode: skip signature check");
+        }
+
+        // --- Parse dữ liệu webhook ---
+        let data;
+        if (req.body instanceof Buffer) {
+            data = JSON.parse(req.body.toString());
+        } else if (typeof req.body === "object") {
+            data = req.body;
+        } else {
+            throw new Error("Invalid request body");
+        }
+
+        console.log("📌 Webhook data:", data);
+        if (!data || !data.data) {
+            console.log("⚠️ Webhook received but data or data.data is missing. Ignoring.");
+            return res.status(200).json({ message: "Webhook received but no relevant data to process." });
+        }
+        const { orderCode, code, desc } = data.data;
+
+        // Code logic nghiệp vụ của em
+        const payment = await Payment.findOne({ orderCode });
+        if (!payment) {
+            console.log(`⚠️ Payment with orderCode ${orderCode} not found.`);
+            return res.status(200).json({ message: "Payment not found but webhook acknowledged." });
+        }
+        
+        if (code === "00" || desc?.toLowerCase().includes("thành công")) {
+            payment.status = "Paid";
+            payment.completedAt = new Date();
+            await payment.save();
+
+            if (payment.bookingId) {
+                await Booking.findByIdAndUpdate(payment.bookingId, { status: "paid" });
+            }
+            console.log(`✅ Payment ${orderCode} marked as PAID`);
+        } else {
+            payment.status = "Failed";
+            await payment.save();
+            console.log(`❌ Payment ${orderCode} failed`);
+        }
+
+        return res.status(200).json({ message: "Webhook processed successfully" });
+    } catch (error) {
+        console.error("❌ Error in PayOS webhook:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+    // =================== XÓA DÒNG NÀY ĐI ===================
+    // res.status(200).json({ message: "DEBUG SUCCESS: Webhook received!" }); // Dòng này bị thừa
+    // =======================================================
+});
+
+// Sau đó mới dùng JSON cho các route khác
 app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
@@ -87,6 +207,9 @@ app.use("/api/membership-packages", membershipRoutes);
 const paymentRoutes = require("./src/routes/paymentRoutes");
 app.use("/api/payment", paymentRoutes);
 
+// Ai routes
+const aiRoutes = require("./src/routes/aiRoutes")
+app.use("/api/ai", aiRoutes);
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send("Something went wrong!");
@@ -114,6 +237,8 @@ app.use((err, req, res, next) => {
 //   });
 // });
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+const visitRequestRoutes = require('./src/routes/visitRequestRoutes');
+app.use('/api/visit-requests', visitRequestRoutes);
+server.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
 });

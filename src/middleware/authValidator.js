@@ -112,3 +112,26 @@ exports.resetPasswordValidator = [
     next();
   }
 ];
+exports.updateUserInfoValidator = [
+  body('name')
+    .optional()
+    .isLength({ min: 2, max: 50 }).withMessage('Tên phải từ 2 đến 50 ký tự')
+    .matches(/^[\p{L}\s]+$/u).withMessage('Tên chỉ được chứa chữ cái và khoảng trắng'),
+
+  body('phone')
+    .optional()
+    .matches(/^[0-9]{10}$/).withMessage('Số điện thoại phải có đúng 10 chữ số'),
+
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array().map(err => ({
+          msg: err.msg,
+          param: err.path
+        }))
+      });
+    }
+    next();
+  }
+];

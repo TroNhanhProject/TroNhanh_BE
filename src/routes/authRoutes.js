@@ -11,5 +11,6 @@ router.post('/verify-otp', authController.verifyOTP);
 router.post('/resend-otp', authController.resendOTP);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password/:token', resetPasswordValidator, authController.resetPassword);
-
+router.post("/google-login", authController.googleLogin);
+router.post('/setRole',authController.setRole);
 module.exports = router;

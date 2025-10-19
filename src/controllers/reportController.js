@@ -17,6 +17,7 @@ exports.createReport = async (req, res) => {
 
     const reportData = {
       reporterId,
+      reporterId,
       type,
       content,
     };
@@ -32,7 +33,10 @@ exports.createReport = async (req, res) => {
   } catch (error) {
     console.error("❌ Error creating report:", error);
     res.status(500).json({ message: "Failed to create report" });
+    res.status(500).json({ message: "Failed to create report" });
   }
+};
+
 };
 
 

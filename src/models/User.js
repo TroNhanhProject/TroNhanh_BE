@@ -5,8 +5,8 @@ const userSchema = new mongoose.Schema(
   {
     role: {
       type: String,
-      enum: ['admin', 'owner', 'customer'],
-      default: 'customer'
+      enum: ['admin', 'owner', 'customer', 'pending'], // pending = chưa chọn role
+      default: 'pending'
     },
     name: {
       type: String,
@@ -22,13 +22,17 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
-      minlength: 6
+      minlength: 6,
+      required: function () {
+        return this.provider === 'local';
+      }
     },
     phone: {
       type: String,
-      required: true,
       trim: true,
+      required: function () {
+        return this.provider === 'local';
+      }
     },
     gender: {
       type: String,
@@ -46,15 +50,15 @@ const userSchema = new mongoose.Schema(
     },
     verified: {
       type: Boolean,
-      default: false,
+      default: false
     },
     resetPasswordToken: {
       type: String,
-      default: null,
+      default: null
     },
     resetPasswordExpires: {
       type: Date,
-      default: null,
+      default: null
     },
     isMembership: {
       type: String,
@@ -68,6 +72,16 @@ const userSchema = new mongoose.Schema(
     deletedAt: {
       type: Date,
       default: null
+    },
+    googleId: {
+      type: String,
+      default: null
+    },
+    provider: {
+      type: String,
+      enum: ['local', 'google'],
+      required: true,
+      default: 'local'
     }
   },
   {
@@ -75,21 +89,17 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-// Mã hóa mật khẩu trước khi lưu
+// Hash password trước khi lưu (chỉ local)
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
-// Hàm kiểm tra mật khẩu
+// So sánh password (chỉ local)
 userSchema.methods.comparePassword = async function (candidatePassword) {
+  if (!this.password) return false; // user Google không có password
   return bcrypt.compare(candidatePassword, this.password);
 };
-
 
 module.exports = mongoose.model('User', userSchema);

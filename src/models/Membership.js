@@ -4,11 +4,13 @@ const MemberShipSchema = new mongoose.Schema({
     ownerId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        require: true
+        required: true
     },
+    packageId: { type: mongoose.Schema.Types.ObjectId, ref: 'MembershipPackage', required: true },
+
     type: {
         type: String,
-        enum: ['Silver', 'Gold', 'Diamond'],
+        enum: ['Bronze','Silver', 'Gold', 'Diamond'],
         default: 'Silver'
     },
     price: {
@@ -20,13 +22,14 @@ const MemberShipSchema = new mongoose.Schema({
         enum: ['Active', 'Inactive', 'Suspended', 'Expired', 'Pending'],
         default: 'Pending'
     },
+    
     startDate: {
         type: Date,
         default: Date.now
     },
     endDate: {
         type: Date,
-        default: Date.now
+       
     }
 })
 

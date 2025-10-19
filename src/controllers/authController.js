@@ -3,6 +3,8 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const dotenv = require("dotenv");
+const { OAuth2Client } = require("google-auth-library");
+const client = new OAuth2Client(process.env.CLIENT_ID);
 dotenv.config();
 
 const UserOTP = require("../models/UserOTP");
@@ -71,9 +73,12 @@ exports.login = async (req, res) => {
        if (!user.verified) {
       return res.status(400).json({ message: "Email is not verified" });
     }
+    console.log("🔹 password from body:", password);
+console.log("🔹 user.password from DB:", user.password);
     // So sánh mật khẩu
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Wrong password" });
+
 
     // Tạo JWT
     const accessToken = generateAccessToken(user);
@@ -90,6 +95,7 @@ exports.login = async (req, res) => {
       },
     });
   } catch (err) {
+    console.error("🔥 Login error:", err);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -338,5 +344,130 @@ exports.resetPassword = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+exports.googleLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: "No Google token provided" });
+
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      // 🔹 Tạo user Google mới
+      user = new User({
+        name: name || "Google User",
+        email,
+        googleId: payload.sub,
+        provider: "google",
+        status: "active",
+        verified: true,
+        role: "pending",
+        avatar: picture,
+      });
+      await user.save();
+    } else {
+      if (user.isDeleted)
+        return res.status(403).json({ message: "This account has been deleted." });
+      if (user.status === "inactive")
+        return res.status(403).json({ message: "Account not activated." });
+      if (user.status === "banned")
+        return res.status(403).json({ message: "Account banned." });
+    }
+
+    // ⚠️ Nếu chưa chọn role
+    if (user.role === "pending") {
+      return res.json({
+        message: "Google login successful - please select role",
+        needRoleSelection: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          role: user.role,
+        },
+      });
+    }
+
+    // ✅ Nếu đã có role → cấp token
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    console.log("📦 Response being sent to frontend:", {
+      message: "Google login successful",
+      needRoleSelection: false,
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+
+    // ✅ Trả dữ liệu thật cho frontend
+    return res.json({
+      message: "Google login successful",
+      needRoleSelection: false,
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      },
+    });
+  } catch (err) {
+    console.error("🔥 Google login error:", err);
+    res.status(500).json({ message: "Google login failed" });
+  }
+};
+ 
+
+// Set role cho user Google
+exports.setRole = async (req, res) => {
+  try {
+    const { userId, role } = req.body;
+    if (!["owner", "customer"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.role = role;
+    await user.save();
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    res.json({
+      message: "Role set successfully",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      }
+    });
+  } catch (err) {
+    console.error("Set role error:", err);
+    res.status(500).json({ message: "Failed to set role" });
   }
 };

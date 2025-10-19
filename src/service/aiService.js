@@ -1,6 +1,5 @@
 // services/aiService.js
-
-import { GoogleGenerativeAI } from "@google/generative-ai";
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -10,7 +9,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * @param {function} onChunk - Callback được gọi với mỗi chunk phản hồi
  * @param {string} model - Tên mô hình
  */
-export const chatWithAIStreaming = async (message, onChunk, model = "gemini-2.5-flash") => {
+const chatWithAIStreaming = async (message, onChunk, model = "gemini-2.5-flash") => {
   try {
     const modelInstance = genAI.getGenerativeModel({ model });
     const result = await modelInstance.generateContentStream(message);
@@ -26,3 +25,5 @@ export const chatWithAIStreaming = async (message, onChunk, model = "gemini-2.5-
     throw new Error("Lỗi khi gọi Gemini API");
   }
 };
+
+module.exports = { chatWithAIStreaming };

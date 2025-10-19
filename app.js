@@ -101,6 +101,10 @@ const server = http.createServer(app);
 const onlineUsers = new Map();
 const busyUsers = new Set();
 
+function broadcastOnlineUsers(io) {
+  io.emit("online-users", Array.from(onlineUsers.keys()));
+}
+
 const io = socketIo(server, {
   cors: {
     origin: process.env.FRONTEND_URL || "http://localhost:3000",
@@ -130,6 +134,7 @@ io.on("connection", (socket) => {
   if (socket.data.userId) {
     const userId = socket.data.userId;
     onlineUsers.set(userId, socket.id);
+    broadcastOnlineUsers(io);
     socket.join(`user:${userId}`);
     socket.emit("user-added", { ok: true, socketId: socket.id });
     console.log(`👤 User ${userId} is now online with socket ${socket.id}`);
@@ -143,6 +148,7 @@ io.on("connection", (socket) => {
     socket.join(`user:${userId}`);
     socket.emit("user-added", { ok: true, socketId: socket.id });
     console.log(`👤 User ${userId} added with socket ${socket.id}`);
+    broadcastOnlineUsers(io);
   });
 
   // ===== CHAT EVENTS =====
@@ -216,6 +222,9 @@ io.on("connection", (socket) => {
         offer,
       });
     }
+
+    busyUsers.add(socket.userId);
+    io.to(toUserId).emit("webrtc-offer", { fromUserId: socket.userId, offer });
   });
 
   // WebRTC Answer
@@ -291,11 +300,6 @@ io.on("connection", (socket) => {
   //   }
   // });
 
-  socket.on("webrtc-offer", ({ toUserId, offer, roomId }) => {
-    busyUsers.add(socket.userId);
-    io.to(toUserId).emit("webrtc-offer", { fromUserId: socket.userId, offer });
-  });
-
   socket.on("end-call", ({ toUserId }) => {
     busyUsers.delete(socket.userId);
     io.to(toUserId).emit("end-call", { fromUserId: socket.userId });
@@ -311,6 +315,7 @@ io.on("connection", (socket) => {
     const userId = socket.data.userId;
     if (userId && onlineUsers.get(userId) === socket.id) {
       onlineUsers.delete(userId);
+      broadcastOnlineUsers(io);
       console.log(`🔴 User ${userId} disconnected (${reason})`);
     }
     console.log("🔴 Socket disconnected:", socket.id);

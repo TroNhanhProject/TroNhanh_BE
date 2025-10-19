@@ -1,16 +1,17 @@
 const Message = require('../models/Message');
 
-// GET /api/profile/messages
+// GET /api/messages/conversations
 exports.getUserMessages = async (req, res, next) => {
   try {
-    const messages = await Message.find({ senderId: req.user.id }).sort({ time: -1 });
+    const userId = req.params.userId;
+    const messages = await Message.find({ senderId: userId }).sort({ time: -1 });
     res.json(messages);
   } catch (err) {
     next(err);
   }
 };
 
-// POST /api/profile/messages
+// POST /api/messages/
 exports.sendMessage = async (req, res, next) => {
   try {
     const newMessage = new Message({
@@ -21,20 +22,6 @@ exports.sendMessage = async (req, res, next) => {
     });
     const saved = await newMessage.save();
     res.status(201).json(saved);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// DELETE /api/profile/messages/:id
-exports.deleteMessage = async (req, res, next) => {
-  try {
-    const deleted = await Message.findOneAndDelete({
-      _id: req.params.id,
-      senderId: req.user.id
-    });
-    if (!deleted) return res.status(404).json({ message: 'Message not found' });
-    res.json({ message: 'Deleted successfully' });
   } catch (err) {
     next(err);
   }

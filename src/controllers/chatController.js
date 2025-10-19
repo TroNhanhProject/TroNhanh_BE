@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Chat = require("../models/Chat");
 const Message = require("../models/Message");
 
@@ -26,7 +27,7 @@ exports.getOrCreateChat = async (req, res) => {
       chat = await Chat.create({ user1Id: u1, user2Id: u2 });
     }
 
-    res.json(chat);
+    res.status(200).json(chat);
   } catch (err) {
     console.error("Error in getOrCreateChat:", err);
     res.status(500).json({ error: err.message });
@@ -65,13 +66,14 @@ exports.getUserChats = async (req, res) => {
     const chats = await Chat.find({
       $or: [{ user1Id: userId }, { user2Id: userId }]
     })
+      .populate('user1Id', 'name avatar')
+      .populate('user2Id', 'name avatar')
       .sort({ updatedAt: -1 }) // sắp xếp theo thời gian
       .lean(); // trả về JS object
 
     // Gắn thêm lastMessage
     for (let chat of chats) {
-      const lastMsg = await Message.findOne({ chatId: chat._id })
-        .sort({ createdAt: -1 });
+      const lastMsg = await Message.findOne({ chatId: chat._id }).sort({ time: -1 });
       chat.lastMessage = lastMsg;
     }
 

@@ -6,12 +6,12 @@ const Notification = require("../models/Notification"); // Thêm import còn thi
 const mongoose = require('mongoose')
 exports.createBooking = async (req, res) => {
   try {
-    const { userId, propertyId, guestInfo, startDate, leaseDuration, guests } =
+    const { userId, boardingHouseId, guestInfo, startDate, leaseDuration, guests } =
       req.body;
 
     // Check if the BoardingHouse is approved and available
     const property = await BoardingHouse.findOne({
-      _id: propertyId,
+      _id: boardingHouseId,
       approvedStatus: "approved",
       status: "Available"
     });
@@ -132,21 +132,44 @@ exports.updateBoardingHouseAfterPayment = async (req, res) => {
 // Get user's booking for specific BoardingHouse
 exports.getUserBookingForBoardingHouse = async (req, res) => {
   try {
-    const { userId, BoardingHouseId } = req.params;
+    const { userId, boardingHouseId } = req.params;
 
-    const booking = await Booking.findOne({
-      userId: userId,
-      propertyId: BoardingHouseId,
-      status: { $in: ["paid", "pending"] } // chỉ lấy booking đã thanh toán hoặc đang pending
-    }).populate('propertyId', 'title price');
+    // 🔹 1. Lấy tất cả roomId của boarding house này
+    const rooms = await Room.find({ boardingHouseId }).select("_id");
+    const roomIds = rooms.map((r) => r._id);
 
-    if (!booking) {
-      return res.status(404).json({ message: "No booking found" });
+    if (roomIds.length === 0) {
+      return res.status(404).json({ message: "No rooms found in this boarding house" });
     }
 
-    res.status(200).json(booking);
+    // 🔹 2. Kiểm tra xem user có booking nào thuộc các phòng đó không (dựa trên status)
+    const booking = await Booking.findOne({
+      userId,
+      roomId: { $in: roomIds },
+      status: { $in: ["Pending", "Cancel", "Paid"] }, 
+    })
+      .populate("boardingHouseId", "name location photos")
+      .populate("roomId", "roomNumber price area");
+
+    if (!booking) {
+      return res.status(404).json({ message: "No booking found for this user in this house" });
+    }
+
+    // 🔹 3. Xác định displayStatus cho frontend
+    const displayStatus =
+      booking.status === "paid"
+        ? "Paid"
+        : booking.status === "approved" || booking.status === "pending"
+        ? "Pending"
+        : "Other";
+
+    // 🔹 4. Trả về kết quả
+    res.status(200).json({
+      ...booking.toObject(),
+      displayStatus,
+    });
   } catch (error) {
-    console.error("Error getting user booking:", error);
+    console.error("Error getting user booking for boarding house:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
@@ -503,6 +526,7 @@ exports.cancelBookingRequest = async (req, res) => {
       },
       {
         // Chỉ cập nhật trường này
+        status:'cancel',
         contractStatus: 'cancelled_by_tenant'
       },
       { new: true } // Trả về document đã được cập nhật
@@ -533,5 +557,33 @@ exports.cancelBookingRequest = async (req, res) => {
   } catch (error) {
     console.error("[CANCEL BOOKING ERROR]", error);
     res.status(500).json({ message: 'Lỗi server khi hủy yêu cầu.' });
+  }
+};
+exports.checkOutBooking = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // ✅ Cập nhật trạng thái booking
+    booking.status = "Checked-out";
+    booking.checkedOutAt = new Date();
+    await booking.save();
+
+    // ✅ Cập nhật lại phòng
+    if (booking.roomId) {
+      await Room.findByIdAndUpdate(booking.roomId, {
+        status: "Available",
+        customerId: null,
+      });
+    }
+
+    return res.json({ message: "Room checked out successfully", booking });
+  } catch (error) {
+    console.error("Error during checkout:", error);
+    res.status(500).json({ message: "Server error during checkout" });
   }
 };

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bookingController = require("../controllers/bookingController");
-const authMiddleware = require('../middleware/authMiddleWare');
+const authMiddleware = require('../middleware/authMiddleware');
 
 router.post("/", authMiddleware, bookingController.createBooking);
 router.put("/checkout/:bookingId", authMiddleware, bookingController.checkoutBooking);
@@ -12,7 +12,7 @@ router.get('/user/history', authMiddleware, bookingController.getUserBookingHist
 router.get('/user/request-history', authMiddleware, bookingController.getUserBookingRequest);
 
 router.get("/boarding-house/:boardingHouseId", authMiddleware, bookingController.getBookingsByBoardingHouse);
-
+router.put("/:bookingId/checkout", bookingController.checkOutBooking);
 router.post('/request', authMiddleware, bookingController.requestBooking);
 router.put('/:bookingId/cancel', authMiddleware, bookingController.cancelBookingRequest);
 

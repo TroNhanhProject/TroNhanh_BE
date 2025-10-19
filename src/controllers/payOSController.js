@@ -78,8 +78,10 @@
         // Signature
         const rawSignature = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description.slice(0,25)}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
         const signature = crypto.createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY).update(rawSignature).digest("hex");
-
-        const payload = { orderCode, amount, description: description.slice(0,25), cancelUrl, returnUrl, signature };
+        // ExpiredAt 15 phút
+       const expiredAt = Math.floor(Date.now() / 1000) + 15 * 60;
+       const expiredAtDate = new Date(expiredAt * 1000);
+        const payload = { orderCode, amount, description: description.slice(0,25), cancelUrl, returnUrl, signature,  expiredAt  };
         const PAYOS_API = useSandbox ? PAYOS_SANDBOX_API : PAYOS_PROD_API;
 
         const response = await axios.post(PAYOS_API, payload, {
@@ -95,8 +97,7 @@
             throw new Error("PayOS response invalid: no checkoutUrl returned");
         }
 
-        // ExpiredAt 15 phút
-        const expiredAt = new Date(Date.now() + 15 * 60000);
+
 
         // Tạo Payment record
         await Payment.create({
@@ -108,10 +109,11 @@
             amount,
             status: "Pending",
             orderCode,
-            expiredAt
+            expiredAtDate
         });
 
-        return res.json({ url: checkoutUrl });
+        const countdownUrl = `${process.env.FRONTEND_URL}/payment-countdown?url=${encodeURIComponent(checkoutUrl)}`;
+return res.json({ url: countdownUrl });
 
     } catch (error) {
         console.error("❌ PayOS Error:", error.response?.data || error.message);

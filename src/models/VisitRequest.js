@@ -2,9 +2,9 @@
 const mongoose = require('mongoose');
 
 const visitRequestSchema = new mongoose.Schema({
-  accommodationId: {
+  boardingHouseId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Accommodation', 
+    ref: 'BoardingHouse', 
     required: true
   },
   customerId: { 

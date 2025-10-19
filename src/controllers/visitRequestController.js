@@ -25,9 +25,9 @@ exports.createVisitRequest = async (req, res) => {
         .json({ message: "Authentication failed. User not found." });
     }
     const customerId = req.user.id;
-    const { accommodationId, ownerId, requestedDateTime, message } = req.body;
+    const { boardingHouseId, ownerId, requestedDateTime, message } = req.body;
 
-    if (!accommodationId || !ownerId || !requestedDateTime) {
+    if (!boardingHouseId || !ownerId || !requestedDateTime) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
@@ -43,7 +43,7 @@ exports.createVisitRequest = async (req, res) => {
     }
 
     const newRequest = new VisitRequest({
-      accommodationId,
+      boardingHouseId,
       customerId,
       ownerId,
       requestedDateTime,
@@ -80,7 +80,7 @@ exports.getCustomerVisitRequests = async (req, res) => {
     const customerId = req.user.id;
 
     const requests = await VisitRequest.find({ customerId })
-      .populate("accommodationId", "title photos location price")
+      .populate("boardingHouseId", "name photos location price")
       .populate("ownerId", "name avatar")
       .sort({ createdAt: -1 });
 
@@ -103,7 +103,7 @@ exports.getOwnerVisitRequests = async (req, res) => {
     const ownerId = req.user.id;
 
     const requests = await VisitRequest.find({ ownerId })
-      .populate("accommodationId", "title location")
+      .populate("boardingHouseId", "title location")
       .populate("customerId", "name avatar email phone")
       .sort({ createdAt: -1 });
 

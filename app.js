@@ -174,8 +174,8 @@ io.on("connection", (socket) => {
       });
     }
 
-    busyUsers.add(socket.userId);
-    io.to(toUserId).emit("webrtc-offer", { fromUserId: socket.userId, offer });
+    // busyUsers.add(socket.userId);
+    // io.to(toUserId).emit("webrtc-offer", { fromUserId: socket.userId, offer });
   });
 
   // WebRTC Answer

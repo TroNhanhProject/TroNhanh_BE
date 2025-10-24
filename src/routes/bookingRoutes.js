@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bookingController = require("../controllers/bookingController");
-const authMiddleware = require('../middleware/authMiddleware');
+const authMiddleware = require('../middleware/authMiddleWare');
 
 router.post("/", authMiddleware, bookingController.createBooking);
 router.put("/checkout/:bookingId", authMiddleware, bookingController.checkoutBooking);

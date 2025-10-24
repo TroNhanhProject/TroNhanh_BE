@@ -10,6 +10,7 @@ const BoardingHouse = require("../models/BoardingHouse");
 const Room = require('../models/Room');
 const Payment = require("../models/Payment");
 const MembershipPackage = require("../models/MembershipPackage");
+const Membership = require("../models/Membership")
 const User = require('../models/User');
 const Review = require('../models/Reviews');
 const Booking = require('../models/Booking');
@@ -285,7 +286,12 @@ exports.submitReview = async (req, res) => {
         if (!house) return res.status(404).json({ message: "Không tìm thấy nhà trọ" });
 
         const roomIds = (await Room.find({ boardingHouseId }).select('_id')).map(r => r._id);
-        const userBooking = await Booking.findOne({ userId, propertyId: { $in: roomIds }, status: { $in: ['paid', 'completed'] } });
+        const userBooking = await Booking.findOne({
+  userId,
+  boardingHouseId,
+  contractStatus: { $in: ['paid', 'approved'] }
+});
+
         if (!userBooking) return res.status(403).json({ message: "Bạn chỉ có thể đánh giá nhà trọ mà bạn đã đặt phòng." });
 
         const existingReview = await Review.findOne({ boardingHouseId, customerId: userId });
@@ -387,31 +393,74 @@ const getOwnerProperties = async (ownerId) => {
  * @route GET /api/owner/statistics
  */
 exports.getOwnerStatistics = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
-        const { houses, houseIds, rooms, roomIds } = await getOwnerProperties(ownerId);
+  try {
+    const ownerId = req.user.id;
 
-        const totalBoardingHouses = houses.length;
-        const availableRooms = rooms.filter(r => r.status === 'Available').length;
+    // 🔹 1. Lấy toàn bộ BoardingHouse của owner
+    const houses = await BoardingHouse.find({ ownerId }).select("_id approvedStatus");
+    const houseIds = houses.map(h => h._id);
 
-        const allBookings = await Booking.find({ propertyId: { $in: roomIds }, status: { $in: ['paid', 'completed'] } });
-        const totalRevenue = allBookings.reduce((sum, booking) => sum + (booking.paymentInfo?.amount || 0), 0);
+    const totalHouses = houses.length;
+    const approvedHouses = houses.filter(h => h.approvedStatus === "approved").length;
+    const pendingHouses = houses.filter(h => h.approvedStatus === "pending").length;
+    const rejectedHouses = houses.filter(h => h.approvedStatus === "rejected").length;
 
-        res.status(200).json({
-            success: true, statistics: {
-                totalBoardingHouses,
-                totalRooms: rooms.length,
-                availableRooms,
-                bookedRooms: rooms.length - availableRooms,
-                totalRevenue,
-                totalBookings: allBookings.length
-            }
-        });
-    } catch (error) {
-        console.error("Error getting owner statistics:", error);
-        res.status(500).json({ message: "Internal server error" });
+    // 🔹 Nếu chưa có nhà trọ nào => return sớm
+    if (houseIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        statistics: {
+          totalHouses,
+          approvedHouses,
+          pendingHouses,
+          rejectedHouses,
+          totalBookings: 0,
+          totalRevenue: 0,
+        },
+      });
     }
+
+    // 🔹 2. Lấy tất cả booking của các nhà trọ đó
+    const bookings = await Booking.find({
+      boardingHouseId: { $in: houseIds },
+    })
+      .populate("roomId", "price") // để lấy giá từ Room
+      .select("contractStatus roomId");
+
+    // 🔹 3. Chuẩn hóa contractStatus về chữ thường
+    const normalizeStatus = (status) => (status || "").toLowerCase();
+
+    // 🔹 4. Lọc booking có status là 'paid' hoặc 'approved'
+    const relevantBookings = bookings.filter((b) =>
+      ["Paid", "approved"].includes(normalizeStatus(b.contractStatus))
+    );
+
+    // 🔹 5. Tính tổng số booking và tổng doanh thu
+    const totalBookings = relevantBookings.length;
+    const totalRevenue = relevantBookings.reduce(
+      (sum, b) => sum + (b.roomId?.price || 0),
+      0
+    );
+
+    // 🔹 6. Trả về kết quả
+    return res.status(200).json({
+      success: true,
+      statistics: {
+        totalHouses,
+        approvedHouses,
+        pendingHouses,
+        rejectedHouses,
+        totalBookings,
+        totalRevenue,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting owner statistics:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
+
 
 /**
  * @description Lấy danh sách các nhà trọ của owner kèm rating trung bình.
@@ -500,36 +549,48 @@ exports.getBoardingHouseRatingsForOwner = async (req, res) => {
  * @route GET /api/owner/bookings/recent
  */
 exports.getOwnerRecentBookings = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
-        const limit = parseInt(req.query.limit) || 10;
-        const { roomIds } = await getOwnerProperties(ownerId);
+  try {
+    const ownerId = req.user.id;
+    const { limit = 10 } = req.query;
 
-        const recentBookings = await Booking.find({ propertyId: { $in: roomIds } })
-            .populate('userId', 'name email')
-            .populate({
-                path: 'propertyId', // propertyId giờ là Room
-                select: 'roomNumber',
-                populate: { path: 'boardingHouseId', select: 'name' } // Populate lồng nhau để lấy tên nhà trọ
-            })
-            .sort({ createdAt: -1 })
-            .limit(limit);
+    // 🔹 Tìm tất cả nhà trọ thuộc chủ sở hữu
+    const houses = await BoardingHouse.find({ ownerId }).select("_id");
+    const houseIds = houses.map(h => h._id);
 
-        const formattedBookings = recentBookings.map(booking => ({
-            key: booking._id,
-            customerName: booking.userId?.name || 'N/A',
-            boardingHouseName: booking.propertyId?.boardingHouseId?.name || 'N/A',
-            roomNumber: booking.propertyId?.roomNumber || 'N/A',
-            bookingDate: booking.createdAt,
-            amount: booking.paymentInfo?.amount || 0,
-            status: booking.status,
-        }));
-        res.status(200).json({ success: true, bookings: formattedBookings });
-    } catch (error) {
-        console.error("Error getting owner recent bookings:", error);
-        res.status(500).json({ message: "Internal server error" });
+    if (houseIds.length === 0) {
+      return res.status(200).json({ success: true, bookings: [] });
     }
+
+    // 🔹 Tìm tất cả bookings thuộc các nhà trọ đó
+    const bookings = await Booking.find({ boardingHouseId: { $in: houseIds } })
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .populate("userId", "name email")
+      .populate("boardingHouseId", "name photos location price")
+      .populate("roomId", "price roomNumber"); // ✅ lấy giá và số phòng
+
+    // 🔹 Trả dữ liệu đã được format
+    res.status(200).json({
+      success: true,
+      bookings: bookings.map(b => ({
+        _id: b._id,
+        customerName: b.userId?.name,
+        houseName: b.boardingHouseId?.name,
+         houseId: b.boardingHouseId?._id,       
+    housePhotos: b.boardingHouseId?.photos, 
+        roomNumber: b.roomId?.roomNumber || "N/A",
+        amount: b.roomId?.price || 0,
+        status: b.status || b.contractStatus, 
+        createdAt: b.createdAt
+      }))
+    });
+  } catch (error) {
+    console.error("Error getting recent bookings:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
+
 
 
 /**
@@ -537,78 +598,84 @@ exports.getOwnerRecentBookings = async (req, res) => {
  * @route GET /api/owner/boarding-houses/top
  */
 exports.getOwnerTopBoardingHouses = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
-        const limit = parseInt(req.query.limit) || 5;
-        const { houses } = await getOwnerProperties(ownerId);
+  try {
+    const ownerId = req.user.id;
+    const { limit = 5 } = req.query;
 
-        const stats = await Promise.all(
-            houses.map(async (house) => {
-                const roomsInHouse = await Room.find({ boardingHouseId: house._id }).select('_id');
-                const roomIdsInHouse = roomsInHouse.map(r => r._id);
+    const houses = await BoardingHouse.find({ ownerId, approvedStatus: "approved" }).select("_id name");
 
-                const bookingCount = await Booking.countDocuments({ propertyId: { $in: roomIdsInHouse }, status: { $in: ['paid', 'completed'] } });
+    const housesWithRatings = await Promise.all(
+      houses.map(async (house) => {
+        const reviews = await Review.find({ boardingHouseId: house._id });
+        const avgRating =
+          reviews.length > 0
+            ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+            : 0;
+        return { _id: house._id, name: house.name, averageRating: parseFloat(avgRating), totalReviews: reviews.length };
+      })
+    );
 
-                const reviews = await Review.find({ boardingHouseId: house._id });
-                let avgRating = 0;
-                if (reviews.length > 0) {
-                    avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-                }
-
-                return {
-                    key: house._id,
-                    name: house.name,
-                    bookings: bookingCount,
-                    rating: parseFloat(avgRating.toFixed(1))
-                };
-            })
-        );
-
-        const topHouses = stats.sort((a, b) => b.bookings - a.bookings).slice(0, limit);
-        res.status(200).json({ success: true, topBoardingHouses: topHouses });
-    } catch (error) {
-        console.error("Error getting owner top houses:", error);
-        res.status(500).json({ message: "Internal server error" });
-    }
+    const sorted = housesWithRatings.sort((a, b) => b.averageRating - a.averageRating);
+    res.status(200).json({ success: true, accommodations: sorted.slice(0, limit) });
+  } catch (error) {
+    console.error("Error getting top boarding houses:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 /**
  * @description Lấy thông tin gói thành viên hiện tại và số bài đăng.
  * @route GET /api/owner/membership-info
  */
 exports.getOwnerMembershipInfo = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
-        const latestPayment = await Payment.findOne({ ownerId, status: "Paid" }).sort({ createAt: -1 }).populate("membershipPackageId");
+  try {
+    const ownerId = req.user.id;
 
-        if (!latestPayment || !latestPayment.membershipPackageId) {
-            return res.status(200).json({ success: true, membershipInfo: { hasActiveMembership: false } });
-        }
+    // 🔹 Lấy membership mới nhất của owner
+    const latestMembership = await Membership.findOne({ ownerId })
+      .sort({ endDate: -1 })
+      .populate("packageId");
 
-        const membershipPackage = latestPayment.membershipPackageId;
-        const expiredAt = new Date(latestPayment.createdAt.getTime() + (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000);
-        const isExpired = new Date() > expiredAt;
-
-        // Đếm số lượng NHÀ TRỌ, không phải phòng trọ
-        const currentPostsCount = await BoardingHouse.countDocuments({ ownerId });
-        const postsAllowed = membershipPackage.postsAllowed || 0;
-
-        res.status(200).json({
-            success: true,
-            membershipInfo: {
-                hasActiveMembership: !isExpired,
-                packageName: membershipPackage.packageName,
-                postsAllowed,
-                currentPostsCount,
-                remainingPosts: Math.max(0, postsAllowed - currentPostsCount),
-                isExpired,
-                expiredAt
-            }
-        });
-    } catch (error) {
-        console.error("Error getting owner membership info:", error);
-        res.status(500).json({ message: "Internal server error" });
+    // 🔹 Nếu chưa từng mua gói hoặc không có package hợp lệ
+    if (!latestMembership || !latestMembership.packageId) {
+      return res.status(200).json({
+        success: true,
+        membershipInfo: { hasActiveMembership: false },
+      });
     }
+
+    const packageInfo = latestMembership.packageId;
+
+    // 🔹 Kiểm tra hết hạn
+    const isExpired = new Date() > new Date(latestMembership.endDate);
+
+    // 🔹 Đếm số lượng nhà trọ hiện có của owner
+    const currentPostsCount = await BoardingHouse.countDocuments({ ownerId });
+
+    const postsAllowed = packageInfo.postsAllowed || 0;
+
+    // 🔹 Trả về kết quả
+    res.status(200).json({
+      success: true,
+      membershipInfo: {
+        hasActiveMembership: latestMembership.status === "Active" && !isExpired,
+        packageName: packageInfo.packageName,
+        type: latestMembership.type,
+        price: latestMembership.price,
+        postsAllowed,
+        currentPostsCount,
+        remainingPosts: Math.max(0, postsAllowed - currentPostsCount),
+        isExpired,
+        startDate: latestMembership.startDate,
+        expiredAt: latestMembership.endDate,
+        status: latestMembership.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting owner membership info:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
 
 /**
@@ -616,39 +683,54 @@ exports.getOwnerMembershipInfo = async (req, res) => {
  * @route GET /api/owner/revenue/monthly
  */
 exports.getOwnerMonthlyRevenue = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
-        const { months = 6 } = req.query;
-        const { roomIds } = await getOwnerProperties(ownerId);
+  try {
+    const ownerId = req.user.id;
+    const { months = 6 } = req.query;
 
-        if (roomIds.length === 0) {
-            return res.status(200).json({ success: true, monthlyRevenue: [] });
-        }
+    // 🔹 Lấy tất cả nhà trọ thuộc owner
+    const houses = await BoardingHouse.find({ ownerId }).select("_id");
+    const houseIds = houses.map(h => h._id);
 
-        const monthlyData = [];
-        for (let i = parseInt(months) - 1; i >= 0; i--) {
-            const targetDate = new Date();
-            targetDate.setMonth(targetDate.getMonth() - i);
-            const startOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
-            const endOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
-
-            const monthlyBookings = await Booking.find({
-                propertyId: { $in: roomIds },
-                status: { $in: ['paid', 'completed'] },
-                createdAt: { $gte: startOfMonth, $lte: endOfMonth }
-            });
-
-            const revenue = monthlyBookings.reduce((sum, b) => sum + (b.paymentInfo?.amount || 0), 0);
-            const monthName = targetDate.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' });
-
-            monthlyData.push({ month: monthName, revenue });
-        }
-        res.status(200).json({ success: true, monthlyRevenue: monthlyData });
-    } catch (error) {
-        console.error("Error getting owner monthly revenue:", error);
-        res.status(500).json({ message: "Internal server error" });
+    if (houseIds.length === 0) {
+      return res.status(200).json({ success: true, monthlyRevenue: [] });
     }
+
+    const monthlyData = [];
+
+    for (let i = months - 1; i >= 0; i--) {
+      const targetDate = new Date();
+      targetDate.setMonth(targetDate.getMonth() - i);
+
+      // Tính khoảng thời gian đầu và cuối tháng
+      const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+      const end = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0, 23, 59, 59, 999);
+
+      // 🔹 Lấy tất cả booking thuộc các nhà trọ này
+      const bookings = await Booking.find({
+        boardingHouseId: { $in: houseIds },
+        status: { $in: ["Paid", "completed"] }, // các trạng thái đã thanh toán
+        createdAt: { $gte: start, $lte: end },
+      }).populate("roomId", "price");
+
+      // 🔹 Tính doanh thu từ các booking
+      const revenue = bookings.reduce((sum, b) => sum + (b.roomId?.price || 0), 0);
+
+      monthlyData.push({
+        month: targetDate.toLocaleString("vi-VN", { month: "short", year: "numeric" }),
+        revenue,
+        bookingsCount: bookings.length,
+        monthNumber: targetDate.getMonth() + 1,
+        year: targetDate.getFullYear(),
+      });
+    }
+
+    res.status(200).json({ success: true, monthlyRevenue: monthlyData });
+  } catch (error) {
+    console.error("Error getting monthly revenue:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 // Get Owner Membership Info with Boardinghouse Count
 exports.getOwnerMembershipInfo = async (req, res) => {
@@ -782,45 +864,41 @@ exports.getOwnerTopAccommodations = async (req, res) => {
  * @access Owner
  */
 exports.getOwnerCurrentMembership = async (req, res) => {
-    try {
-        const ownerId = req.user.id;
+  try {
+    const ownerId = req.user.id;
 
-        // Lấy payment gần nhất có status "Paid"
-        const latestPayment = await Payment.findOne({
-            ownerId,
-            status: "Paid",
-        })
-            .sort({ createAt: -1 })
-            .populate("membershipPackageId");
+    const currentMembership = await Membership.findOne({
+      ownerId,
+      status: { $in: ["Active", "Pending"] }
+    })
+      .sort({ endDate: -1 })
+      .populate("packageId");
 
-        if (!latestPayment || !latestPayment.membershipPackageId) {
-            return res.status(200).json({
-                success: true,
-                membership: {
-                    packageName: "Chưa có gói thành viên",
-                    isActive: false,
-                }
-            });
-        }
-
-        const membershipPackage = latestPayment.membershipPackageId;
-        const durationDays = membershipPackage.duration || 0;
-        const createdAt = latestPayment.createAt;
-        const expiredAt = new Date(
-            createdAt.getTime() + durationDays * 24 * 60 * 60 * 1000
-        );
-
-        res.status(200).json({
-            success: true,
-            membership: {
-                packageName: membershipPackage.packageName || "Unknown Package",
-                isActive: new Date() <= expiredAt,
-                purchaseDate: createdAt,
-                expiredAt,
-            }
-        });
-    } catch (error) {
-        console.error("Error getting owner current membership:", error);
-        res.status(500).json({ success: false, message: "Internal server error" });
+    if (!currentMembership) {
+      return res.status(200).json({
+        success: true,
+        membership: {
+          packageName: "No Active Membership",
+          isActive: false,
+          expiredAt: null,
+        },
+      });
     }
+
+    const isExpired = new Date() > new Date(currentMembership.endDate);
+
+    res.status(200).json({
+      success: true,
+      membership: {
+        packageName: currentMembership.packageId?.packageName || "Unknown Package",
+        isActive: !isExpired,
+        expiredAt: currentMembership.endDate,
+        startDate: currentMembership.startDate,
+        status: currentMembership.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting current membership:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };

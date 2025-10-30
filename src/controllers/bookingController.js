@@ -587,3 +587,56 @@ exports.checkOutBooking = async (req, res) => {
     res.status(500).json({ message: "Server error during checkout" });
   }
 };
+
+exports.getOwnerBookings = async (req, res) => {
+  try {
+    const ownerId = req.user.id; // lấy id owner từ authMiddleware
+    const { limit = 50 } = req.query; // giới hạn mặc định 50 bookings
+
+    // 🔹 Tìm tất cả nhà trọ của owner
+    const houses = await BoardingHouse.find({ ownerId }).select("_id name location price photos");
+    const houseIds = houses.map(h => h._id);
+
+    if (houseIds.length === 0) {
+      return res.status(200).json({ success: true, bookings: [] });
+    }
+
+    // 🔹 Lấy tất cả bookings có status = "paid" hoặc contractStatus = "paid" và thuộc các nhà trọ của owner
+    const bookings = await Booking.find({
+      boardingHouseId: { $in: houseIds },
+      $or: [
+        { status: "Paid" },
+        { contractStatus: "paid" } // nếu bạn dùng contractStatus
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(Number(limit))
+      .populate("userId", "name email")               // thông tin customer
+      .populate("boardingHouseId", "name photos location price") // thông tin boarding house
+      .populate("roomId", "roomNumber price");       // thông tin phòng
+
+    // 🔹 Format dữ liệu để frontend dễ dùng
+    const formattedBookings = bookings.map(b => ({
+      _id: b._id,
+      customer: b.userId ? { _id: b.userId._id, name: b.userId.name, email: b.userId.email } : null,
+      house: b.boardingHouseId ? {
+        _id: b.boardingHouseId._id,
+        name: b.boardingHouseId.name,
+        location: b.boardingHouseId.location,
+        photos: b.boardingHouseId.photos,
+        price: b.boardingHouseId.price
+      } : null,
+      room: b.roomId ? { roomNumber: b.roomId.roomNumber, price: b.roomId.price } : null,
+      amount: b.roomId?.price || 0,
+      status: b.status,
+      contractStatus: b.contractStatus,
+      createdAt: b.createdAt
+    }));
+
+    return res.status(200).json({ success: true, bookings: formattedBookings });
+
+  } catch (error) {
+    console.error("Error getting owner bookings:", error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

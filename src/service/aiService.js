@@ -5,20 +5,29 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
  * Chat với Gemini Pro và streaming phản hồi
- * @param {string} message - Tin nhắn của người dùng
+ * @param {string} systemPrompt - Lệnh hệ thống (vai trò, hướng dẫn cố định)
+ * @param {string} userMessage - Tin nhắn của người dùng
  * @param {function} onChunk - Callback được gọi với mỗi chunk phản hồi
  * @param {string} model - Tên mô hình
  */
-const chatWithAIStreaming = async (message, onChunk, model = "gemini-2.5-flash") => {
+const chatWithAIStreaming = async (systemPrompt,userMessage, onChunk, model = "gemini-2.5-flash") => {
+   if (!systemPrompt || !userMessage) {
+    throw new Error("Thiếu systemPrompt hoặc userMessage");
+  }
+
   let attempt = 0;
   const maxRetries = 3;
 
   while (attempt < maxRetries) {
     try {
       const modelInstance = genAI.getGenerativeModel({ model });
-      const result = await modelInstance.generateContentStream({
-        contents: [{ role: "user", parts: [{ text: message }] }],
-      });
+      const contents = [
+        { role: "user", parts: [{ text: systemPrompt + "\n\n---\n\n" + userMessage }] },
+      ];
+
+      const result = await modelInstance.generateContentStream({ contents });
+
+
 
       for await (const chunk of result.stream) {
         const chunkText = chunk.text();

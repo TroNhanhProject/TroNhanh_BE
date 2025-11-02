@@ -32,3 +32,17 @@ exports.getPostsByAccommodation = async (req, res) => {
     res.status(500).json({ message: 'Error fetching posts', error });
   }
 };
+
+exports.getAllPosts = async (req, res) => {
+  try {
+    const posts = await RoommatePost.find({})
+      .populate('userId', 'name avatar phone gender')
+      .populate('boardingHouseId', 'name address') // optional
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ posts });
+  } catch (error) {
+    console.error('Error fetching all roommate posts', error);
+    return res.status(500).json({ message: 'Error fetching posts', error });
+  }
+};

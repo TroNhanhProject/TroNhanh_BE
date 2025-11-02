@@ -18,8 +18,8 @@ const fakeReq = {
     desc: "success",
     success: true,
     data: {
-      orderCode: 1760885274, // orderCode của Payment cần test
-      amount: 1000,
+      orderCode: 1760687225, // orderCode của Payment cần test
+      amount: 2000,
       description: "Buy Membership Bronze",
       paymentLinkId: "696d68de0833491bb89a31a18e262aaa",
     },
@@ -39,7 +39,7 @@ const fakeRes = {
     await handlePayOSWebhook(fakeReq, fakeRes);
 
     // Check lại Payment & Membership
-    const payment = await Payment.findOne({ orderCode: 1760885274 });
+    const payment = await Payment.findOne({ orderCode: 1760684462 });
     const membership = await Membership.findOne({ ownerId: payment.ownerId, packageId: payment.membershipPackageId });
     console.log("Payment after webhook:", payment);
     console.log("Membership after webhook:", membership);

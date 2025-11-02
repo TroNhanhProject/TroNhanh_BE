@@ -3,64 +3,43 @@ const crypto = require("crypto");
 const Payment = require("../models/Payment");
 const MembershipPackage = require("../models/MembershipPackage");
 const Booking = require("../models/Booking");
-const Boarding = require("../models/BoardingHouse");
+const BoardingHouse = require("../models/BoardingHouse");
 const User = require("../models/User");
-const Membership = require("../models/Membership");
-const Room = require("../models/Room");
+const Membership = require('../models/Membership')
+
 const PAYOS_SANDBOX_API = "https://api-merchant.payos.vn/v2/payment-requests";
 const PAYOS_PROD_API = "https://api-merchant.payos.vn/v2/payment-requests";
+
 exports.createPaymentUrl = async (req, res) => {
   try {
-    const { packageId, userId, bookingId, type } = req.body;
-    if (!userId || !type)
-      return res
-        .status(400)
-        .json({ message: "Missing required fields (userId, type)" });
+    const { packageId, userId, bookingId, type, amount: clientAmount } = req.body;
+    if (!userId || !type) return res.status(400).json({ message: "Missing required fields (userId, type)" });
 
-    let amount = 0,
-      description = "",
-      finalBookingId = bookingId,
-      userMembershipId = null,
-      membershipPackageId = null;
+    let amount = 0, description = "", finalBookingId = bookingId, userMembershipId = null, membershipPackageId = null;
 
     // Lấy user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found." });
 
+
     // Xử lý theo type
     if (type === "membership") {
-      if (!packageId)
-        return res
-          .status(400)
-          .json({ message: "packageId is required for membership purchase" });
+      if (!packageId) return res.status(400).json({ message: "packageId is required for membership purchase" });
 
       const membershipPackage = await MembershipPackage.findById(packageId);
-      if (!membershipPackage || !membershipPackage.isActive)
-        return res
-          .status(404)
-          .json({ message: "Membership package not found or inactive." });
+      if (!membershipPackage || !membershipPackage.isActive) return res.status(404).json({ message: "Membership package not found or inactive." });
 
       amount = membershipPackage.price;
       description = `Buy Membership: ${membershipPackage.packageName}`;
       membershipPackageId = membershipPackage._id;
 
       // Kiểm tra pending membership
-      const existingMembership = await Membership.findOne({
-        ownerId: userId,
-        packageId,
-        status: "Pending",
-      });
-      if (existingMembership)
-        return res
-          .status(400)
-          .json({
-            message: "You already have a pending membership for this package.",
-          });
+      const existingMembership = await Membership.findOne({ ownerId: userId, packageId, status: 'Pending' });
+      if (existingMembership) return res.status(400).json({ message: "You already have a pending membership for this package." });
 
       // Tạo Pending membership với startDate = now, endDate = startDate + duration
       const now = new Date();
-      const durationMs =
-        (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
+      const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
       const endDate = new Date(now.getTime() + durationMs);
 
       const userMembership = await Membership.create({
@@ -68,21 +47,21 @@ exports.createPaymentUrl = async (req, res) => {
         packageId: membershipPackage._id,
         type: membershipPackage.packageName,
         price: amount,
-        status: "Pending",
+        status: 'Pending',
         startDate: now,
-        endDate: endDate,
+        endDate: endDate
       });
       userMembershipId = userMembership._id;
-    } else if (type === "booking") {
-      if (!bookingId)
-        return res
-          .status(400)
-          .json({ message: "bookingId is required for booking payment" });
-      const booking = await Booking.findById(bookingId);
-      if (!booking)
-        return res.status(404).json({ message: "Booking not found." });
 
-      amount = booking.totalPrice;
+    } else if (type === "booking") {
+      if (!bookingId) return res.status(400).json({ message: "bookingId is required for booking payment" });
+      if (!clientAmount || clientAmount <= 0) {
+        return res.status(400).json({ message: "Amount is required for booking payment" });
+      }
+      const booking = await Booking.findById(bookingId);
+      if (!booking) return res.status(404).json({ message: "Booking not found." });
+
+      amount = clientAmount;
       description = `Pay for Booking #${booking.bookingCode || booking._id}`;
     } else {
       return res.status(400).json({ message: "Invalid payment type" });
@@ -90,47 +69,22 @@ exports.createPaymentUrl = async (req, res) => {
 
     // Sandbox test
     const useSandbox = process.env.PAYOS_USE_SANDBOX === "true";
-    const testAmount =
-      useSandbox && process.env.PAYOS_TEST_AMOUNT
-        ? parseInt(process.env.PAYOS_TEST_AMOUNT, 10)
-        : null;
-    if (testAmount && !isNaN(testAmount)) amount = testAmount;
+    // const testAmount = useSandbox && process.env.PAYOS_TEST_AMOUNT ? parseInt(process.env.PAYOS_TEST_AMOUNT, 10) : null;
+    // if (testAmount && !isNaN(testAmount)) amount = testAmount;
 
     const orderCode = Math.floor(Date.now() / 1000);
 
     // URLs
-    const baseReturnUrl =
-      user.role === "owner"
-        ? process.env.PAYOS_RETURN_URL_OWNER
-        : process.env.PAYOS_RETURN_URL;
-    const baseCancelUrl =
-      user.role === "owner"
-        ? process.env.PAYOS_CANCEL_URL_OWNER
-        : process.env.PAYOS_CANCEL_URL;
-    const returnUrl = `${baseReturnUrl}&orderCode=${orderCode}&type=${type}${
-      finalBookingId ? `&bookingId=${finalBookingId}` : ""
-    }`;
- const cancelUrl = `${baseCancelUrl}&type=${type}&orderCode=${orderCode}`;
-
+    const baseReturnUrl = user.role === 'owner' ? process.env.PAYOS_RETURN_URL_OWNER : process.env.PAYOS_RETURN_URL;
+    const baseCancelUrl = user.role === 'owner' ? process.env.PAYOS_CANCEL_URL_OWNER : process.env.PAYOS_CANCEL_URL;
+    const returnUrl = `${baseReturnUrl}&orderCode=${orderCode}&type=${type}${finalBookingId ? `&bookingId=${finalBookingId}` : ''}`;
+    const cancelUrl = `${baseCancelUrl}&type=${type}`;
 
     // Signature
-    const rawSignature = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description.slice(
-      0,
-      25
-    )}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
-    const signature = crypto
-      .createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY)
-      .update(rawSignature)
-      .digest("hex");
+    const rawSignature = `amount=${amount}&cancelUrl=${cancelUrl}&description=${description.slice(0, 25)}&orderCode=${orderCode}&returnUrl=${returnUrl}`;
+    const signature = crypto.createHmac("sha256", process.env.PAYOS_CHECKSUM_KEY).update(rawSignature).digest("hex");
 
-    const payload = {
-      orderCode,
-      amount,
-      description: description.slice(0, 25),
-      cancelUrl,
-      returnUrl,
-      signature,
-    };
+    const payload = { orderCode, amount, description: description.slice(0, 25), cancelUrl, returnUrl, signature };
     const PAYOS_API = useSandbox ? PAYOS_SANDBOX_API : PAYOS_PROD_API;
 
     const response = await axios.post(PAYOS_API, payload, {
@@ -159,10 +113,11 @@ exports.createPaymentUrl = async (req, res) => {
       amount,
       status: "Pending",
       orderCode,
-      expiredAt,
+      expiredAt
     });
 
     return res.json({ url: checkoutUrl });
+
   } catch (error) {
     console.error("❌ PayOS Error:", error.response?.data || error.message);
     return res.status(500).json({
@@ -171,6 +126,7 @@ exports.createPaymentUrl = async (req, res) => {
     });
   }
 };
+
 
 /**
  * PayOS không gọi callback trực tiếp như VNPay,
@@ -190,10 +146,10 @@ exports.payosReturn = async (req, res) => {
     // Dựa trên thông tin em có, hoặc mặc định
     // Ví dụ: em có thể thêm một param 'type' vào returnUrl lúc tạo
     // Ở đây ta dùng URL cơ sở từ .env
-    let baseFrontendUrl = process.env.PAYOS_RETURN_URL; // Ví dụ: http://localhost:3000/customer/booking-result
+    let baseFrontendUrl = process.env.PAYOS_RETURN_URL;// Ví dụ: http://localhost:3000/customer/booking-result
     if (queryParams.userId) {
       const user = await User.findById(queryParams.userId);
-      if (user && user.role === "owner") {
+      if (user && user.role === 'owner') {
         baseFrontendUrl = process.env.PAYOS_RETURN_URL_OWNER;
       }
     }
@@ -209,11 +165,12 @@ exports.payosReturn = async (req, res) => {
 
     // Chuyển hướng người dùng về frontend
     return res.redirect(redirectUrl.toString());
+
   } catch (error) {
     console.error("❌ PayOS return error:", error);
     // Nếu có lỗi, chuyển về một trang lỗi chung
     const errorRedirectUrl = new URL(process.env.PAYOS_CANCEL_URL);
-    errorRedirectUrl.searchParams.set("error", "processing_return_url");
+    errorRedirectUrl.searchParams.set('error', 'processing_return_url');
     return res.redirect(errorRedirectUrl.toString());
   }
 };
@@ -236,10 +193,8 @@ exports.handlePayOSWebhook = async (req, res) => {
     }
 
     // Lấy payload
-    const data =
-      req.body instanceof Buffer ? JSON.parse(req.body.toString()) : req.body;
-    if (!data?.data)
-      return res.status(200).json({ message: "No relevant data" });
+    const data = req.body instanceof Buffer ? JSON.parse(req.body.toString()) : req.body;
+    if (!data?.data) return res.status(200).json({ message: "No relevant data" });
 
     const { orderCode } = data.data;
     const code = data.data.code || data.code; // PayOS sandbox hoặc thực tế
@@ -263,80 +218,82 @@ exports.handlePayOSWebhook = async (req, res) => {
       payment.status = "Paid";
       payment.completedAt = new Date();
       await payment.save();
-
+      console.log(`[Webhook] Payment ${payment._id} updated to Paid.`);
       // Xử lý booking nếu có
       if (payment.bookingId) {
+        console.log(`[Webhook] Processing Booking ID: ${payment.bookingId}`);
         const updatedBooking = await Booking.findByIdAndUpdate(
           payment.bookingId,
-          { status: "Paid" },
-          { new: true }
+          { status: "paid", contractStatus: "paid" }, // Update both statuses
+          { new: true } // Return the updated document
         );
-          if (updatedBooking) {
-      // ✅ Cập nhật phòng của booking sang "Booked"
-      await Room.findByIdAndUpdate(updatedBooking.roomId, {
-        status: "Booked",
-        customerId: updatedBooking.userId,
-      });
+
+        // ✅ Check if booking was updated and has roomId
+        if (updatedBooking && updatedBooking.roomId) {
+          console.log(`[Webhook] Attempting to update Room ID: ${updatedBooking.roomId} to Booked`);
+          // ✅ UPDATE THE SPECIFIC ROOM
+          const updatedRoom = await Room.findByIdAndUpdate(updatedBooking.roomId, {
+            status: "Booked",
+            customerId: updatedBooking.userId, // Assign the customer to the room
+          });
+          if (updatedRoom) {
+            console.log(`✅ [Webhook] Room ${updatedBooking.roomId} successfully marked as Booked.`);
+          } else {
+            console.warn(`⚠️ [Webhook] Could not find Room ${updatedBooking.roomId} to update status.`);
+          }
+        } else {
+          console.warn(`⚠️ [Webhook] Booking ${payment.bookingId} update failed or missing roomId.`);
         }
       }
 
       // Xử lý membership nếu có
       if (payment.membershipPackageId && payment.ownerId) {
         // Lấy gói membership (cần thiết cho thông tin duration, type, price)
-        const membershipPackage = await MembershipPackage.findById(
-          payment.membershipPackageId
-        );
+        const membershipPackage = await MembershipPackage.findById(payment.membershipPackageId);
         if (!membershipPackage) {
-          console.error(
-            `Webhook Error: MembershipPackage ${payment.membershipPackageId} not found.`
-          );
-          throw new Error(
-            "MembershipPackage not found during webhook processing"
-          );
+          console.error(`Webhook Error: MembershipPackage ${payment.membershipPackageId} not found.`);
+          throw new Error("MembershipPackage not found during webhook processing");
         }
 
         const now = new Date();
-        const durationMs =
-          (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
+        const durationMs = (membershipPackage.duration || 0) * 24 * 60 * 60 * 1000;
 
         // Tìm Active membership CÙNG LOẠI (packageName)
         const existingActive = await Membership.findOne({
           ownerId: payment.ownerId,
           type: membershipPackage.packageName, // Quan trọng: kiểm tra theo 'type' (ví dụ: 'Bronze')
-          status: "Active",
+          status: "Active"
         });
 
         if (existingActive) {
           // 1. GIA HẠN: Nếu đã có gói Active cùng loại, gia hạn endDate
           existingActive.endDate = new Date(
             // Lấy thời gian hết hạn hiện tại, hoặc 'now' nếu nó đã hết hạn, rồi cộng thêm
-            Math.max(
-              existingActive.endDate?.getTime() || now.getTime(),
-              now.getTime()
-            ) + durationMs
+            Math.max(existingActive.endDate?.getTime() || now.getTime(), now.getTime()) + durationMs
           );
           // Đảm bảo packageId được cập nhật (nếu logic của bạn cho phép nâng cấp/thay đổi gói)
           existingActive.packageId = membershipPackage._id;
-          await existingActive.save(); // Xóa Pending membership (nếu nó tồn tại) vì đã gia hạn
+          await existingActive.save();
 
+          // Xóa Pending membership (nếu nó tồn tại) vì đã gia hạn
           if (payment.userMembershipId) {
             await Membership.findByIdAndDelete(payment.userMembershipId);
           }
         } else {
           // 2. KÍCH HOẠT HOẶC TẠO MỚI: Nếu không có gói Active
+
           // Thử tìm 'Pending' membership đã được tạo lúc thanh toán
           let pendingMembership = null;
           if (payment.userMembershipId) {
-            pendingMembership = await Membership.findById(
-              payment.userMembershipId
-            );
+            pendingMembership = await Membership.findById(payment.userMembershipId);
           }
 
-          if (pendingMembership && pendingMembership.status === "Pending") {
+          if (pendingMembership && pendingMembership.status === 'Pending') {
             // 2a. Kích hoạt 'Pending' thành 'Active'
             pendingMembership.status = "Active";
             pendingMembership.startDate = now;
-            pendingMembership.endDate = new Date(now.getTime() + durationMs); // Cập nhật lại thông tin gói (để đảm bảo)
+            pendingMembership.endDate = new Date(now.getTime() + durationMs);
+            // Cập nhật lại thông tin gói (để đảm bảo)
             pendingMembership.packageId = membershipPackage._id;
             pendingMembership.type = membershipPackage.packageName;
             pendingMembership.price = membershipPackage.price;
@@ -350,60 +307,30 @@ exports.handlePayOSWebhook = async (req, res) => {
               price: membershipPackage.price,
               status: "Active",
               startDate: now,
-              endDate: new Date(now.getTime() + durationMs),
+              endDate: new Date(now.getTime() + durationMs)
             });
           }
-        } // Cập nhật trạng thái user
+        }
 
-        await User.findByIdAndUpdate(payment.ownerId, {
-          isMembership: "active",
-        });
+        // Cập nhật trạng thái user
+        await User.findByIdAndUpdate(payment.ownerId, { isMembership: "active" });
       }
+
+
+
     } else {
       // Thanh toán thất bại
       payment.status = "Failed";
       await payment.save();
 
       if (payment.userMembershipId) {
-        await Membership.findByIdAndUpdate(payment.userMembershipId, {
-          status: "Inactive",
-        });
+        await Membership.findByIdAndUpdate(payment.userMembershipId, { status: "Inactive" });
       }
     }
 
     return res.status(200).json({ message: "Webhook processed successfully" });
   } catch (error) {
     console.error("❌ Error in PayOS webhook:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-exports.cancelPayment = async (req, res) => {
-  try {
-    const { orderCode } = req.body;
-    const payment = await Payment.findOne({ orderCode });
-    if (!payment) return res.status(404).json({ message: "Payment not found" });
-
-    if (payment.status === "Pending") {
-      payment.status = "Cancelled";
-      await payment.save();
-
-      // Nếu là membership pending
-      if (payment.userMembershipId) {
-        await Membership.findByIdAndUpdate(payment.userMembershipId, {
-          status: "Cancelled",
-        });
-      }
-
-      // Nếu là booking pending
-      if (payment.bookingId) {
-        await Booking.findByIdAndUpdate(payment.bookingId, { status: "cancelled" });
-      }
-    }
-
-    return res.status(200).json({ message: "Payment cancelled successfully" });
-  } catch (err) {
-    console.error("Cancel payment error:", err);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

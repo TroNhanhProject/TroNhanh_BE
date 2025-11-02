@@ -1,10 +1,10 @@
 
 const express = require("express");
 const { chat} = require("../controllers/aiController");
-const optionalAuthMiddleware = require("../middleware/optionalAuthMiddleware");
+
 const router = express.Router();
 
-router.post("/chat",optionalAuthMiddleware, chat);
+router.post("/chat", chat);
 
 
 module.exports = router; 

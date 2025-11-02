@@ -2,30 +2,15 @@ const RoommatePost = require('../models/RoommatePost');
 
 exports.createPost = async (req, res) => {
   try {
-    // Log incoming request for easier debugging
-    console.log('[roommateController] createPost body:', req.body);
-    console.log('[roommateController] createPost user:', req.user);
-
-    const { boardingHouseId, roomId, intro, genderPreference, habits, note } = req.body;
-
-    // Validate required fields
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Unauthorized: user not found in request' });
-    }
+    const { boardingHouseId, intro, genderPreference, habits } = req.body;
     const userId = req.user.id;
-
-    // Collect uploaded images (if any) and convert to public paths
-    // multer will place files on req.files when using upload.array('images')
-    const files = req.files || [];
-    const imagePaths = files.map((f) => `/uploads/roommate/${f.filename}`);
 
     const post = await RoommatePost.create({
       boardingHouseId,
       userId,
       intro,
       genderPreference,
-      habits,
-      images: imagePaths,
+      habits
     });
 
     res.status(200).json({ message: 'Roommate post created successfully', post });
@@ -45,19 +30,5 @@ exports.getPostsByAccommodation = async (req, res) => {
     res.status(200).json({ posts });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching posts', error });
-  }
-};
-
-exports.getAllPosts = async (req, res) => {
-  try {
-    const posts = await RoommatePost.find({})
-      .populate('userId', 'name avatar phone gender')
-      .populate('boardingHouseId', 'name address') // optional
-      .sort({ createdAt: -1 });
-
-    return res.status(200).json({ posts });
-  } catch (error) {
-    console.error('Error fetching all roommate posts', error);
-    return res.status(500).json({ message: 'Error fetching posts', error });
   }
 };

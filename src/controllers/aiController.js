@@ -1,28 +1,29 @@
-const { chatWithAIStreaming } = require("../service/aiService");
-const { buildAIContext } = require("./aiDataController");
+// controllers/chatController.js
+import { chatWithAIStreaming } from "../service/aiService.js";
 
-exports.chat = async (req, res) => {
-  const { message } = req.body;
-  const user = req.user;
-  const role = user?.role || "guest";
+export const chat = async (req, res) => {
+  const { message, model } = req.body;
+  if (!message) {
+    return res.status(400).send("Message is required");
+  }
 
-  if (!message) return res.status(400).send("Message is required");
-
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  // Header để hỗ trợ streaming
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Transfer-Encoding", "chunked");
 
   try {
-    // 🧠 Tách phần xử lý dữ liệu sang aiDataController
-    const promptContext = await buildAIContext(role, user, message);
-
-    // 🎯 Gọi AI sinh phản hồi
-    await chatWithAIStreaming(promptContext, message, (chunk) =>
-      res.write(chunk)
+    await chatWithAIStreaming(
+      message,
+      (chunk) => {
+        // Gửi chunk về frontend ngay lập tức
+        res.write(chunk);
+      },
+      model
     );
 
-    res.end();
+    res.end(); // kết thúc streaming sau khi tất cả các chunk đã được gửi
   } catch (err) {
-    console.error("AI Chat error:", err);
+    console.error(err);
     res.status(500).send("Lỗi server AI");
   }
 };

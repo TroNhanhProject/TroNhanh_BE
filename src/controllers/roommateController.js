@@ -6,7 +6,7 @@ exports.createPost = async (req, res) => {
     console.log('[roommateController] createPost body:', req.body);
     console.log('[roommateController] createPost user:', req.user);
 
-  const { boardingHouseId, roomId, intro, genderPreference, habits, note } = req.body;
+    const { boardingHouseId, roomId, intro, genderPreference, habits, note } = req.body;
 
     // Validate required fields
     if (!req.user || !req.user.id) {
@@ -14,29 +14,23 @@ exports.createPost = async (req, res) => {
     }
     const userId = req.user.id;
 
-    if (!boardingHouseId) {
-      return res.status(400).json({ message: 'boardingHouseId is required' });
-    }
+    // Collect uploaded images (if any) and convert to public paths
+    // multer will place files on req.files when using upload.array('images')
+    const files = req.files || [];
+    const imagePaths = files.map((f) => `/uploads/roommate/${f.filename}`);
 
     const post = await RoommatePost.create({
       boardingHouseId,
-      roomId,
       userId,
       intro,
       genderPreference,
       habits,
-      note
+      images: imagePaths,
     });
 
-    // Populate user info before returning so frontend can show name/avatar immediately
-    const populatedPost = await RoommatePost.findById(post._id).populate('userId', 'name avatar phone gender');
-
-    // Return the created post directly which frontend expects
-    res.status(200).json({ message: 'Roommate post created successfully', post: populatedPost });
+    res.status(200).json({ message: 'Roommate post created successfully', post });
   } catch (error) {
-    console.error('[roommateController] createPost error:', error);
-    // Send a concise error message (avoid exposing full stack)
-    res.status(500).json({ message: 'Error creating roommate post', error: error.message || error });
+    res.status(500).json({ message: 'Error creating roommate post', error });
   }
 };
 
@@ -51,5 +45,19 @@ exports.getPostsByAccommodation = async (req, res) => {
     res.status(200).json({ posts });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching posts', error });
+  }
+};
+
+exports.getAllPosts = async (req, res) => {
+  try {
+    const posts = await RoommatePost.find({})
+      .populate('userId', 'name avatar phone gender')
+      .populate('boardingHouseId', 'name address') // optional
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({ posts });
+  } catch (error) {
+    console.error('Error fetching all roommate posts', error);
+    return res.status(500).json({ message: 'Error fetching posts', error });
   }
 };

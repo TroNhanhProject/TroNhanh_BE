@@ -172,10 +172,11 @@ io.on("connection", (socket) => {
         roomId,
         offer,
       });
-    }
+  }
 
-    busyUsers.add(socket.userId);
-    io.to(toUserId).emit("webrtc-offer", { fromUserId: socket.userId, offer });
+  // Mark caller as busy and avoid referencing undefined properties.
+  // Use socket.data.userId which is set by the auth middleware above.
+  if (socket.data.userId) busyUsers.add(socket.data.userId);
   });
 
   // WebRTC Answer
@@ -251,9 +252,18 @@ io.on("connection", (socket) => {
   //   }
   // });
 
-  socket.on("end-call", ({ toUserId }) => {
-    busyUsers.delete(socket.userId);
-    io.to(toUserId).emit("end-call", { fromUserId: socket.userId });
+  socket.on("end-call", ({ toUserId, roomId }) => {
+    // Remove caller from busy set
+    if (socket.data.userId) busyUsers.delete(socket.data.userId);
+
+    if (toUserId) {
+      const targetSocket = onlineUsers.get(toUserId);
+      if (targetSocket) {
+        io.to(targetSocket).emit("end-call", { fromUserId: socket.data.userId });
+      }
+    } else if (roomId) {
+      socket.to(`room:${roomId}`).emit("end-call", { fromUserId: socket.data.userId, roomId });
+    }
   });
 
   // ping/pong

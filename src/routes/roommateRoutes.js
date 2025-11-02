@@ -5,7 +5,7 @@ const { createPost, getPostsByAccommodation, getAllPosts } = require('../control
 const authMiddleware = require('../middleware/authMiddleWare');
 
 router.post('/', authMiddleware, createPost);
-router.get('/:accommodationId', getPostsByAccommodation);
+router.get('/:boardingHouseId', getPostsByAccommodation);
 router.get('/', getAllPosts);
 
 module.exports = router;

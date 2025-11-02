@@ -14,12 +14,18 @@ exports.createPost = async (req, res) => {
     }
     const userId = req.user.id;
 
+    // Collect uploaded images (if any) and convert to public paths
+    // multer will place files on req.files when using upload.array('images')
+    const files = req.files || [];
+    const imagePaths = files.map((f) => `/uploads/roommate/${f.filename}`);
+
     const post = await RoommatePost.create({
       boardingHouseId,
       userId,
       intro,
       genderPreference,
-      habits
+      habits,
+      images: imagePaths,
     });
 
     res.status(200).json({ message: 'Roommate post created successfully', post });

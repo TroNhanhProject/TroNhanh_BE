@@ -14,8 +14,9 @@ const roommatePostSchema = new mongoose.Schema({
     required: true
   },
   intro: String, // giới thiệu bản thân
-  genderPreference: { type: String, enum: ['male', 'female', 'other'], default: 'Any' },
+  genderPreference: { type: String, enum: ['male', 'female', 'other', 'any'], default: 'any' },
   habits: [String], // ví dụ: ["Clean", "Quiet", "Smoker"]
+  images: [String], // paths to uploaded images, e.g. "/uploads/roommate/....jpg"
   createdAt: {
     type: Date,
     default: Date.now

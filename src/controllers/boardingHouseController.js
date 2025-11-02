@@ -43,11 +43,11 @@ exports.createBoardingHouse = async (req, res) => {
             if (!req.body.photosMap) return null;
             try { return JSON.parse(req.body.photosMap); } catch (e) { return null; }
         })();
-       let uploadedFiles = [];
-if (req.files) {
-  if (req.files.photos) uploadedFiles = uploadedFiles.concat(req.files.photos);
-  if (req.files.files) uploadedFiles = uploadedFiles.concat(req.files.files);
-}
+        let uploadedFiles = [];
+        if (req.files) {
+            if (req.files.photos) uploadedFiles = uploadedFiles.concat(req.files.photos);
+            if (req.files.files) uploadedFiles = uploadedFiles.concat(req.files.files);
+        }
         const photoPaths = uploadedFiles.map((file) => `/uploads/accommodation/${file.filename}`) || [];
 
         const newBoardingHouse = new BoardingHouse({
@@ -102,10 +102,9 @@ if (req.files) {
 exports.updateBoardingHouse = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, amenities } = req.body;
+        const { name, description } = req.body;
         const location = JSON.parse(req.body.location || "{}");
-        const photoPaths = req.files?.map((file) => `/uploads/accommodation/${file.filename}`) || [];
-
+        const photoPaths = req.files?.photos?.map((file) => `/uploads/accommodation/${file.filename}`) || []; const amenities = JSON.parse(req.body.amenities || "[]");
         // 1. Lấy thông tin nhà trọ hiện tại TRƯỚC KHI cập nhật
         const existingHouse = await BoardingHouse.findById(id);
         if (!existingHouse) {
@@ -164,8 +163,8 @@ exports.updateBoardingHouse = async (req, res) => {
         console.error("[UPDATE BOARDING HOUSE ERROR]", err);
         // Dọn dẹp file mới tải lên nếu có lỗi xảy ra sau khi upload
         if (req.files) {
-            const cleanupPromises = req.files.map(file => fs.unlink(file.path).catch(e => console.error("Lỗi khi dọn dẹp file:", e)));
-            await Promise.all(cleanupPromises);
+            const allUploadedFiles = Object.values(req.files || {}).flat();
+            const cleanupPromises = allUploadedFiles.map(file => fs.unlink(file.path).catch(e => console.error("Lỗi khi dọn dẹp file:", e))); await Promise.all(cleanupPromises);
         }
         res.status(500).json({ message: "Server error" });
     }
@@ -985,7 +984,7 @@ exports.getBoardingHouseDetailsByBooking = async (req, res) => {
         res.status(200).json({
             success: true,
             boardingHouse: boardingHouse,
-            room: room 
+            room: room
         });
     } catch (error) {
         console.error("Error fetching boarding house details by booking:", error);

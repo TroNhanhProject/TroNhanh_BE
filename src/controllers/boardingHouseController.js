@@ -43,7 +43,11 @@ exports.createBoardingHouse = async (req, res) => {
             if (!req.body.photosMap) return null;
             try { return JSON.parse(req.body.photosMap); } catch (e) { return null; }
         })();
-        const uploadedFiles = req.files || [];
+       let uploadedFiles = [];
+if (req.files) {
+  if (req.files.photos) uploadedFiles = uploadedFiles.concat(req.files.photos);
+  if (req.files.files) uploadedFiles = uploadedFiles.concat(req.files.files);
+}
         const photoPaths = uploadedFiles.map((file) => `/uploads/accommodation/${file.filename}`) || [];
 
         const newBoardingHouse = new BoardingHouse({

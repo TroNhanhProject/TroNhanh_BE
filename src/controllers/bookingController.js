@@ -588,3 +588,39 @@ exports.checkOutBooking = async (req, res) => {
     res.status(500).json({ message: "Server error during checkout" });
   }
 };
+
+exports.signContract = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { signatureImageBase64 } = req.body;
+
+    if (!signatureImageBase64) {
+      return res.status(400).json({ message: "Chữ ký không được cung cấp." });
+    }
+
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({ message: "Booking không tìm thấy." });
+    }
+
+    // Kiểm tra xem người dùng có quyền ký không (ví dụ: là người tạo booking)
+    // if (booking.userId.toString() !== req.user.id) {
+    //     return res.status(403).json({ message: "Bạn không có quyền ký hợp đồng này." });
+    // }
+
+    // Lưu chữ ký vào booking hoặc tạo một collection Contract riêng
+    // Ví dụ: lưu vào booking
+    booking.tenantSignature = signatureImageBase64;
+    booking.contractSignedDate = new Date();
+    booking.status = 'Contract Signed'; // Cập nhật trạng thái
+
+    await booking.save();
+
+    res.status(200).json({ message: "Hợp đồng đã được ký thành công!", booking });
+
+  } catch (error) {
+    console.error("Error in signContract:", error);
+    res.status(500).json({ message: "Lỗi server khi ký hợp đồng.", error: error.message });
+  }
+};

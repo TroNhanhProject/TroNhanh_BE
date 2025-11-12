@@ -192,6 +192,8 @@ exports.getAllBoardingHouses = async (req, res) => {
                     availableRoomsCount: { $size: { $filter: { input: '$rooms', as: 'room', cond: { $eq: ['$$room.status', 'Available'] } } } },
                     minPrice: { $min: '$rooms.price' },
                     maxPrice: { $max: '$rooms.price' },
+                    minArea: { $min: "$rooms.area" }, 
+                    maxArea: { $max: "$rooms.area" },
                     totalRooms: { $size: '$rooms' }
                 }
             },

@@ -15,5 +15,5 @@ router.get("/boarding-house/:boardingHouseId", authMiddleware, bookingController
 router.put("/:bookingId/checkout", bookingController.checkOutBooking);
 router.post('/request', authMiddleware, bookingController.requestBooking);
 router.put('/:bookingId/cancel', authMiddleware, bookingController.cancelBookingRequest);
-
+router.post('/:bookingId/sign-contract', authMiddleware, bookingController.signContract);
 module.exports = router;
